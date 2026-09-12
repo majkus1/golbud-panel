@@ -1,0 +1,9 @@
+{
+  "regions": ["dub1"],
+  "crons": [
+    {
+      "path": "/api/cron/reminder-digest",
+      "schedule": "0 5 * * *"
+    }
+  ]
+}

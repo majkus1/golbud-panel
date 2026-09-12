@@ -1,0 +1,5 @@
+# Jedna konwencja końców linii w repozytorium, niezależnie od systemu.
+* text=auto eol=lf
+*.png binary
+*.pdf binary
+*.ico binary

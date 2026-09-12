@@ -1,0 +1,22 @@
+node_modules
+.next
+out
+.env.local
+.env*.local
+*.log
+
+.vercel
+
+# Zrzuty z produkcji — zawierają dane osobowe klientów, konta i wynagrodzenia.
+# Nigdy nie trafiają do repozytorium.
+supabase/dumps/
+supabase/seed.sql
+
+# Dokumenty od klienta (umowy, kosztorysy z danymi osobowymi) i notatki handlowe —
+# repozytorium może być udostępnione klientowi, więc to zostaje wyłącznie lokalnie.
+PLIKI PDF I WORD OD KLIENTA/
+Oferta4_GolBud_*.pdf
+NOTATKI_DO_ZMIANY_PO_OPLACENIU_I_SPOTKANIU.md
+ODPOWIEDZ_DO_KLIENTA.md
+STAN_APLIKACJI_DLA_CURSOR.md
+.cursor/

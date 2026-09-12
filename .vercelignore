@@ -1,0 +1,25 @@
+# Co NIE ma trafiać na Vercel.
+#
+# Bez tego pliku CLI bierze reguły z .gitignore, a tam nie ma dokumentów od klienta
+# ani zrzutów bazy — poszłyby na serwer razem z kodem. To dane osobowe klientów
+# i wewnętrzne notatki handlowe, które nie mają czego szukać w buildzie.
+
+# Umowy, kosztorysy i oferty przekazane przez klienta — dane osobowe.
+PLIKI PDF I WORD OD KLIENTA/
+Oferta4_GolBud_*.pdf
+
+# Migracje i zrzuty bazy — potrzebne lokalnie, nieużywane w czasie działania aplikacji.
+supabase/
+
+# Notatki wewnętrzne: ustalenia, wyceny, korespondencja z klientem.
+NOTATKI_DO_ZMIANY_PO_OPLACENIU_I_SPOTKANIU.md
+ODPOWIEDZ_DO_KLIENTA.md
+STAN_APLIKACJI_DLA_CURSOR.md
+KONTEKST_APLIKACJI.md
+docs/
+
+# Środowisko lokalne i artefakty.
+.env*.local
+.next/
+*.log
+node_modules/
