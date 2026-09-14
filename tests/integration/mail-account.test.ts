@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { ANON_KEY, SERVICE_KEY, SUPABASE_URL, TEST_PASSWORD, detectStack, requireStack } from "./local-stack";
 
 /**
  * Testy integracyjne skrzynek pocztowych — sprawdzają to, czego testy jednostkowe nie ruszą:
@@ -9,40 +10,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
  * jest pomijany, żeby `npm test` nie wywracał się na maszynie bez Dockera.
  */
 
-const SUPABASE_URL = process.env.SUPABASE_TEST_URL ?? "http://127.0.0.1:54321";
-// Klucze demo lokalnego Supabase — identyczne na każdej instalacji, nie są tajne.
-const ANON_KEY =
-  process.env.SUPABASE_TEST_ANON_KEY ??
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
-const SERVICE_KEY =
-  process.env.SUPABASE_TEST_SERVICE_KEY ??
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU";
-
-const PASSWORD = "test-haslo-1234";
-const APP_PASSWORD = "abcd efgh ijkl mnop";
-
-async function stackIsUp(): Promise<boolean> {
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/`, { headers: { apikey: ANON_KEY } });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
-/** Ustawiane w `beforeAll` — bez działającego stosu każdy test kończy się pominięciem. */
-let available = false;
-
-type SkippableContext = { skip: () => void };
-
-/** Pomija test, gdy lokalny Supabase nie działa (np. na maszynie bez Dockera). */
-function requireStack(ctx: SkippableContext): boolean {
-  if (!available) {
-    ctx.skip();
-    return false;
-  }
-  return true;
-}
+// Tak Google pokazuje hasło aplikacji — cztery bloki ze spacjami. Test sprawdza, że spacje znikają przy zapisie.
+const GOOGLE_APP_KEY_AS_SHOWN = "abcd efgh ijkl mnop";
 
 describe("skrzynki pocztowe użytkowników", () => {
   const service = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
@@ -59,7 +28,7 @@ describe("skrzynki pocztowe użytkowników", () => {
   async function createUser(email: string): Promise<string> {
     const { data, error } = await service.auth.admin.createUser({
       email,
-      password: PASSWORD,
+      password: TEST_PASSWORD,
       email_confirm: true
     });
     if (error || !data.user) throw new Error(`Nie udało się utworzyć użytkownika: ${error?.message}`);
@@ -68,14 +37,13 @@ describe("skrzynki pocztowe użytkowników", () => {
 
   async function signIn(email: string): Promise<SupabaseClient> {
     const client = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
-    const { error } = await client.auth.signInWithPassword({ email, password: PASSWORD });
+    const { error } = await client.auth.signInWithPassword({ email, password: TEST_PASSWORD });
     if (error) throw new Error(`Nie udało się zalogować: ${error.message}`);
     return client;
   }
 
   beforeAll(async () => {
-    available = await stackIsUp();
-    if (!available) return;
+    if (!(await detectStack())) return;
 
     ownerId = await createUser(ownerEmail);
     otherId = await createUser(otherEmail);
@@ -108,7 +76,7 @@ describe("skrzynki pocztowe użytkowników", () => {
     const { data: accountId, error } = await ownerClient.rpc("save_user_mail_account", {
       target_org: organizationId,
       target_email: "Skrzynka@Gmail.com",
-      target_app_password: APP_PASSWORD
+      target_app_password: GOOGLE_APP_KEY_AS_SHOWN
     });
     expect(error).toBeNull();
     expect(accountId).toBeTruthy();
@@ -165,7 +133,7 @@ describe("skrzynki pocztowe użytkowników", () => {
     await otherClient.rpc("save_user_mail_account", {
       target_org: organizationId,
       target_email: "handlowiec@gmail.com",
-      target_app_password: APP_PASSWORD
+      target_app_password: GOOGLE_APP_KEY_AS_SHOWN
     });
 
     const { data: ownerView } = await ownerClient
@@ -197,7 +165,7 @@ describe("skrzynki pocztowe użytkowników", () => {
     const badEmail = await ownerClient.rpc("save_user_mail_account", {
       target_org: organizationId,
       target_email: "to-nie-jest-adres",
-      target_app_password: APP_PASSWORD
+      target_app_password: GOOGLE_APP_KEY_AS_SHOWN
     });
     expect(badEmail.error).not.toBeNull();
 
@@ -240,7 +208,7 @@ describe("skrzynki pocztowe użytkowników", () => {
     await ownerClient.rpc("save_user_mail_account", {
       target_org: organizationId,
       target_email: "skrzynka@gmail.com",
-      target_app_password: APP_PASSWORD
+      target_app_password: GOOGLE_APP_KEY_AS_SHOWN
     });
 
     await service.from("user_mail_accounts").delete().eq("user_id", ownerId);

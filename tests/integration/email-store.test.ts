@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { loadStoredThreads, saveMessages, threadKeyOf } from "@/lib/mail/store";
 import { normalizeSubject, type MailMessage } from "@/lib/mail/thread-model";
+import { ANON_KEY, SERVICE_KEY, SUPABASE_URL, TEST_PASSWORD, detectStack, requireStack } from "./local-stack";
 
 /**
  * Zapis historii korespondencji — najważniejsza gwarancja modułu:
@@ -12,36 +13,8 @@ import { normalizeSubject, type MailMessage } from "@/lib/mail/thread-model";
  * Wymagają lokalnego Supabase; bez niego same się pomijają.
  */
 
-const SUPABASE_URL = process.env.SUPABASE_TEST_URL ?? "http://127.0.0.1:54321";
-const ANON_KEY =
-  process.env.SUPABASE_TEST_ANON_KEY ??
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
-const SERVICE_KEY =
-  process.env.SUPABASE_TEST_SERVICE_KEY ??
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU";
-
-const PASSWORD = "test-haslo-1234";
 const MAILBOX = "skrzynka@golbud.pl";
 const CLIENT = "klient@example.com";
-
-async function stackIsUp(): Promise<boolean> {
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/`, { headers: { apikey: ANON_KEY } });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
-let available = false;
-type SkippableContext = { skip: () => void };
-function requireStack(ctx: SkippableContext): boolean {
-  if (!available) {
-    ctx.skip();
-    return false;
-  }
-  return true;
-}
 
 function message(overrides: Partial<MailMessage> & { uid: number }): MailMessage {
   return {
@@ -77,14 +50,14 @@ describe("zapis historii korespondencji", () => {
   let otherClient: SupabaseClient;
 
   async function createUser(email: string): Promise<string> {
-    const { data, error } = await service.auth.admin.createUser({ email, password: PASSWORD, email_confirm: true });
+    const { data, error } = await service.auth.admin.createUser({ email, password: TEST_PASSWORD, email_confirm: true });
     if (error || !data.user) throw new Error(`Nie udało się utworzyć użytkownika: ${error?.message}`);
     return data.user.id;
   }
 
   async function signIn(email: string): Promise<SupabaseClient> {
     const client = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
-    const { error } = await client.auth.signInWithPassword({ email, password: PASSWORD });
+    const { error } = await client.auth.signInWithPassword({ email, password: TEST_PASSWORD });
     if (error) throw new Error(`Nie udało się zalogować: ${error.message}`);
     return client;
   }
@@ -94,8 +67,7 @@ describe("zapis historii korespondencji", () => {
   }
 
   beforeAll(async () => {
-    available = await stackIsUp();
-    if (!available) return;
+    if (!(await detectStack())) return;
 
     ownerId = await createUser(ownerEmail);
     otherId = await createUser(otherEmail);
