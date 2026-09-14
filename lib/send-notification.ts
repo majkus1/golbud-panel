@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+import { getSmtpFrom, getSmtpTransporter } from "@/lib/smtp-transport";
 
 function escapeHtml(s: string): string {
   return s
@@ -8,32 +8,10 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function getSmtpTransporter() {
-  const user = process.env.SMTP_GMAIL_USER?.trim();
-  const pass = process.env.SMTP_GMAIL_APP_PASSWORD?.replace(/\s/g, "");
-  if (!user || !pass) throw new Error("Brak SMTP_GMAIL_USER lub SMTP_GMAIL_APP_PASSWORD");
-  return nodemailer.createTransport({ host: "smtp.gmail.com", port: 465, secure: true, auth: { user, pass } });
-}
-
-/** Czytelny komunikat dla UI — bez surowego logu Gmaila. */
-export function formatSmtpError(err: unknown): string {
-  const msg = err instanceof Error ? err.message : String(err);
-  if (msg.includes("Brak SMTP_GMAIL")) return msg;
-  if (msg.includes("535") || /badcredentials/i.test(msg) || /username and password not accepted/i.test(msg)) {
-    return (
-      "Gmail odrzucił dane logowania SMTP. W Vercel ustaw SMTP_GMAIL_USER (pełny adres Gmail) " +
-      "i SMTP_GMAIL_APP_PASSWORD (16-znakowe hasło aplikacji Google — nie zwykłe hasło do konta). " +
-      "Konto musi mieć włączone 2FA, żeby wygenerować hasło aplikacji."
-    );
-  }
-  return msg;
-}
-
-function getFrom(): string {
-  const from = process.env.SMTP_GMAIL_FROM || process.env.SMTP_GMAIL_USER;
-  if (!from) throw new Error("Brak SMTP_GMAIL_USER / SMTP_GMAIL_FROM");
-  return from;
-}
+// Połączenie SMTP jest wspólne dla powiadomień, faktur i digestu — lib/smtp-transport.ts.
+// `formatSmtpError` zostaje wyeksportowany stąd, bo importują go trasy wysyłki faktur.
+export { formatSmtpError } from "@/lib/smtp-transport";
+const getFrom = getSmtpFrom;
 
 function appBaseUrl(): string {
   const explicit = process.env.NEXT_PUBLIC_APP_URL?.trim();

@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+import { getSmtpFrom, getSmtpTransporter } from "@/lib/smtp-transport";
 
 function escapeHtml(s: string): string {
   return s
@@ -180,12 +180,8 @@ export type DigestSendParams = {
 
 // ── SMTP ───────────────────────────────────────────────────────────────────────
 
-function getSmtpTransporter() {
-  const user = process.env.SMTP_GMAIL_USER;
-  const pass = process.env.SMTP_GMAIL_APP_PASSWORD;
-  if (!user || !pass) throw new Error("Brak SMTP_GMAIL_USER lub SMTP_GMAIL_APP_PASSWORD");
-  return nodemailer.createTransport({ host: "smtp.gmail.com", port: 465, secure: true, auth: { user, pass } });
-}
+// Transport SMTP jest wspólny z powiadomieniami i fakturami — lib/smtp-transport.ts.
+// Ta kopia nie usuwała spacji z hasła aplikacji Google i jako jedyna cicho padała.
 
 function parseRecipients(raw: string | undefined): string[] {
   if (!raw?.trim()) return [];
@@ -584,8 +580,7 @@ export async function sendDigestToRecipient(
   const n = countItems(params);
   if (n === 0 && !params.sendEmpty) return null;
 
-  const from = process.env.SMTP_GMAIL_FROM || process.env.SMTP_GMAIL_USER;
-  if (!from) throw new Error("Brak SMTP_GMAIL_USER / SMTP_GMAIL_FROM");
+  const from = getSmtpFrom();
 
   const plural = n === 1 ? "pozycja" : n < 5 ? "pozycje" : "pozycji";
   const subject = n === 0
@@ -626,8 +621,7 @@ export async function sendReminderDigestEmailLegacy(params: {
   if (to.length === 0) throw new Error("Brak REMINDER_DIGEST_TO (adresy odbiorców, rozdzielone przecinkiem)");
 
   const sendEmpty = process.env.REMINDER_DIGEST_SEND_EMPTY === "1" || process.env.REMINDER_DIGEST_SEND_EMPTY === "true";
-  const from = process.env.SMTP_GMAIL_FROM || process.env.SMTP_GMAIL_USER;
-  if (!from) throw new Error("Brak SMTP_GMAIL_USER / SMTP_GMAIL_FROM");
+  const from = getSmtpFrom();
 
   const fullParams: DigestSendParams = {
     ...params,

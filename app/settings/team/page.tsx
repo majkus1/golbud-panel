@@ -6,6 +6,7 @@ import { showToast } from "@/components/toast";
 import { AuthGate } from "@/components/auth-gate";
 import { useOrg } from "@/components/org-context";
 import { InfoTip } from "@/components/info-tip";
+import { postAuthenticatedJson } from "@/lib/authed-fetch";
 import { MEMBER_ROLE_LABELS, MEMBER_ROLES } from "@/lib/domain";
 import { defaultNotificationPrefsForRole, NOTIFICATION_HELP, type UserNotificationPrefs } from "@/lib/notification-prefs";
 import { supabase } from "@/lib/supabase";
@@ -261,6 +262,7 @@ function Team() {
           <p className="text-sm text-steel">
             Wybierz, kto i co dostaje mailem. Kliknij <span className="font-semibold">i</span> przy opcji, jeśli potrzebujesz krótkiego wyjaśnienia.
           </p>
+          <TestEmailButton organizationId={organizationId} />
           {digestError && (
             <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
               {digestError}
@@ -293,6 +295,53 @@ function Team() {
           )}
         </section>
       )}
+    </div>
+  );
+}
+
+/**
+ * Testowa wysyłka na własny adres — jedno kliknięcie zamiast grzebania w logach Vercela.
+ *
+ * Poranny digest przestał przychodzić i nie dało się tego sprawdzić: cron raportował sukces,
+ * a na darmowym planie logi z 5:00 znikają po godzinie. Ten sam transport SMTP obsługuje
+ * digest, powiadomienia i faktury, więc jeśli testowy mail dojdzie, dojdą też pozostałe;
+ * jeśli nie — przyczyna jest na ekranie, dokładnie tak jak przy wysyłce faktury.
+ */
+function TestEmailButton({ organizationId }: { organizationId: string }) {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const send = async () => {
+    setBusy(true);
+    setResult(null);
+    const res = await postAuthenticatedJson<{ to: string; from: string }>("/api/notifications/test-email", { organizationId });
+    setBusy(false);
+    if (!res.ok) {
+      setResult({ ok: false, text: res.error });
+      return;
+    }
+    setResult({ ok: true, text: `Wysłano na ${res.data.to} z adresu ${res.data.from}. Sprawdź skrzynkę — także folder Spam.` });
+  };
+
+  return (
+    <div className="grid gap-2 rounded-md border border-stone-200 bg-stone-50 px-3 py-3 sm:flex sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-ink">Sprawdź, czy poczta z panelu wychodzi</p>
+        <p className="text-xs text-steel">Wyśle testową wiadomość na Twój adres tym samym połączeniem, z którego korzysta poranne podsumowanie i powiadomienia.</p>
+        {result && (
+          <p className={`mt-1 text-xs ${result.ok ? "text-emerald-700" : "text-rose-700"}`} role="status">
+            {result.text}
+          </p>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => void send()}
+        disabled={busy}
+        className="shrink-0 rounded-md border border-stone-300 bg-white px-3 py-2 text-xs font-semibold text-ink hover:bg-stone-100 disabled:opacity-50"
+      >
+        {busy ? "Wysyłam…" : "Wyślij testowy e-mail"}
+      </button>
     </div>
   );
 }

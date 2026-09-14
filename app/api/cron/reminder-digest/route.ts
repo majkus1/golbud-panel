@@ -32,6 +32,7 @@ import {
   scopeTasks
 } from "@/lib/digest-scope";
 import { mergeNotificationPrefs } from "@/lib/notification-prefs";
+import { formatSmtpError } from "@/lib/smtp-transport";
 import { sendPushToUser } from "@/lib/web-push-server";
 import type {
   CaseDirectCost,
@@ -842,6 +843,7 @@ export async function GET(request: Request) {
 
     const sent: { to: string; messageId: string | undefined }[] = [];
     const skipped: string[] = [];
+    const failures: { to: string; error: string }[] = [];
 
     for (const pref of prefs) {
       const email = emailByUserId.get(pref.user_id);
@@ -904,7 +906,27 @@ export async function GET(request: Request) {
         if (result) sent.push(result);
       } catch (e) {
         console.error("[digest] send to", email, e);
+        failures.push({ to: email, error: formatSmtpError(e) });
       }
+    }
+
+    // Cicha porażka wyglądała identycznie jak sukces: 200 z `emailsSent: 0`. Vercel
+    // codziennie widział zielony cron, a maile nie wychodziły. Gdy nie doszło do nikogo,
+    // odpowiadamy błędem — Vercel oznaczy uruchomienie jako nieudane, a przyczyna jest
+    // w odpowiedzi, nie w logach, których na darmowym planie po godzinie już nie ma.
+    if (sent.length === 0 && failures.length > 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: `Nie wysłano żadnego podsumowania (${failures.length} nieudanych prób)`,
+          mode: "per_user_prefs",
+          today,
+          counts,
+          failures,
+          skippedUserIds: skipped
+        },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
@@ -915,6 +937,7 @@ export async function GET(request: Request) {
       complianceNotifications,
       emailsSent: sent.length,
       recipients: sent.map((s) => s.to),
+      failures,
       skippedUserIds: skipped
     });
   }
