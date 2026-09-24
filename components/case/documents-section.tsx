@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { postAuthenticatedBlob } from "@/lib/authed-fetch";
-import { DOCUMENT_TEMPLATES, getDocumentTemplate } from "@/lib/document-templates";
-import { AS_BUILT_ESTIMATE_LABEL, AS_BUILT_ESTIMATE_TITLE } from "@/lib/as-built-estimate";
+import { uploadCaseAttachment } from "@/lib/case-attachments";
+import { DOCUMENT_TEMPLATES, getDocumentTemplate, type DocumentCategory } from "@/lib/document-templates";
 import { formatDate, formatMoney, isDue } from "@/lib/format";
 import { describeNetGross, formatPlMoney, grossFromNet } from "@/lib/money-vat";
 import type { OfferSellerProfile } from "@/lib/offer-seller-profile";
@@ -11,6 +11,19 @@ import { ORGANIZATION_OFFER_SELECT, sellerProfileFromOrganization } from "@/lib/
 import { supabase } from "@/lib/supabase";
 import type { CaseRow, Payment } from "@/lib/types";
 
+const GROUP_LABELS: Record<DocumentCategory, string> = {
+  umowa: "Umowy",
+  aneks: "Aneksy",
+  protokół: "Protokoły",
+  "wezwanie do zapłaty": "Wezwania do zapłaty",
+  oświadczenie: "Oświadczenia i potwierdzenia"
+};
+
+/**
+ * Generator dokumentów z wzorów. Zakładka Umowa pokazuje tylko umowy i aneksy, sekcje
+ * Dokumentacji — protokoły albo pozostałe wzory. Gotowy PDF od razu trafia do sprawy
+ * (z oznaczeniem „z wzoru”), pobranie bez zapisu jest opcją dodatkową.
+ */
 export function DocumentsSection({
   caseId,
   organizationId,
@@ -18,7 +31,9 @@ export function DocumentsSection({
   caseRow,
   payments,
   onChange,
-  onOpenAsBuilt
+  categories,
+  heading = "Dokument z wzoru",
+  intro
 }: {
   caseId: string;
   organizationId: string;
@@ -26,9 +41,16 @@ export function DocumentsSection({
   caseRow: CaseRow | null;
   payments: Payment[];
   onChange: () => Promise<void>;
-  onOpenAsBuilt?: () => void;
+  /** Grupy wzorów do wyboru; bez tego — wszystkie. */
+  categories?: DocumentCategory[];
+  heading?: string;
+  intro?: string;
 }) {
-  const [templateId, setTemplateId] = useState<string>(DOCUMENT_TEMPLATES[0]?.id ?? "");
+  const templates = useMemo(
+    () => (categories ? DOCUMENT_TEMPLATES.filter((t) => categories.includes(t.category)) : DOCUMENT_TEMPLATES),
+    [categories]
+  );
+  const [templateId, setTemplateId] = useState<string>(templates[0]?.id ?? "");
   const [title, setTitle] = useState("");
   const [docNumber, setDocNumber] = useState("");
   const [body, setBody] = useState("");
@@ -182,79 +204,36 @@ export function DocumentsSection({
       setBusy(null);
       return;
     }
-    const fileName = `${fileBase()}.pdf`;
-    const path = `${organizationId}/${caseId}/${crypto.randomUUID()}_${fileName}`;
-    const { error: upErr } = await supabase.storage
-      .from("case-attachments")
-      .upload(path, res.blob, { contentType: "application/pdf", upsert: false });
-    if (upErr) {
-      setErr(upErr.message);
-      setBusy(null);
-      return;
-    }
-    const { error: dbErr } = await supabase.from("attachments").insert({
-      organization_id: organizationId,
-      case_id: caseId,
-      storage_path: path,
-      file_name: fileName,
-      mime_type: "application/pdf",
-      size_bytes: res.blob.size,
+    const result = await uploadCaseAttachment(supabase, {
+      organizationId,
+      caseId,
+      userId,
+      file: res.blob,
+      fileName: `${fileBase()}.pdf`,
+      mimeType: "application/pdf",
       category: template?.category ?? "umowa",
-      uploaded_by: userId
+      source: "generated",
+      templateId: template?.id ?? null
     });
-    if (dbErr) {
-      setErr(
-        dbErr.message.includes("attachments_category_check")
-          ? "Baza nie ma aktualnych kategorii dokumentów. Uruchom w Supabase najnowszą migrację z supabase/migrations i spróbuj ponownie."
-          : dbErr.message
-      );
+    if (!result.ok) {
+      setErr(result.error);
       setBusy(null);
       return;
     }
-    setOk("Zapisano w zakładce „Pliki”.");
+    setOk(`Zapisano „${result.attachment.file_name}” w sprawie — jest na liście poniżej.`);
     setBusy(null);
     await onChange();
   };
 
-  const grouped: Record<string, typeof DOCUMENT_TEMPLATES> = {
-    umowa: DOCUMENT_TEMPLATES.filter((t) => t.category === "umowa"),
-    aneks: DOCUMENT_TEMPLATES.filter((t) => t.category === "aneks"),
-    protokół: DOCUMENT_TEMPLATES.filter((t) => t.category === "protokół"),
-    "wezwanie do zapłaty": DOCUMENT_TEMPLATES.filter((t) => t.category === "wezwanie do zapłaty"),
-    oświadczenie: DOCUMENT_TEMPLATES.filter((t) => t.category === "oświadczenie")
-  };
-  const groupLabels: Record<string, string> = {
-    umowa: "Umowy",
-    aneks: "Aneksy",
-    protokół: "Protokoły",
-    "wezwanie do zapłaty": "Wezwania do zapłaty",
-    oświadczenie: "Oświadczenia / dokumenty"
-  };
+  const groups = (Object.keys(GROUP_LABELS) as DocumentCategory[])
+    .map((category) => ({ category, items: templates.filter((t) => t.category === category) }))
+    .filter((g) => g.items.length > 0);
 
   return (
-    <section className="min-w-0 rounded-lg bg-white p-4 shadow-panel sm:p-5">
-      {onOpenAsBuilt && (
-        <div className="mb-5 flex flex-col gap-3 rounded-xl2 border border-moss/25 bg-gradient-to-r from-moss/10 to-white p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-bold text-ink">{AS_BUILT_ESTIMATE_LABEL}</p>
-            <p className="mt-0.5 text-xs text-steel">
-              Generuj {AS_BUILT_ESTIMATE_TITLE} (netto) z pozycji wyceny, zaliczkami i historią pobrania — pełny generator w zakładce „{AS_BUILT_ESTIMATE_LABEL}”.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onOpenAsBuilt}
-            className="shrink-0 rounded-lg bg-moss px-4 py-2.5 text-sm font-semibold text-white hover:bg-ink"
-          >
-            Otwórz generator
-          </button>
-        </div>
-      )}
-
-      <h2 className="text-lg font-bold text-ink">Dokumenty firmowe</h2>
+    <div className="min-w-0">
+      <h3 className="text-base font-bold text-ink">{heading}</h3>
       <p className="mt-1 text-xs text-steel">
-        Wybierz wzór (umowa, aneks, protokół, wezwanie do zapłaty, oświadczenie), uzupełnij treść i wygeneruj PDF z danymi firmy i
-        klienta. Gotowy dokument można pobrać lub zapisać w załącznikach sprawy.
+        {intro ?? "Wybierz wzór, sprawdź treść uzupełnioną danymi sprawy i zapisz PDF w sprawie."}
       </p>
 
       {err && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600">{err}</p>}
@@ -264,9 +243,9 @@ export function DocumentsSection({
         <label className="grid gap-1 text-xs font-semibold text-ink">
           Wzór dokumentu
           <select className="input font-normal" value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
-            {Object.keys(grouped).map((g) => (
-              <optgroup key={g} label={groupLabels[g]}>
-                {grouped[g].map((t) => (
+            {groups.map((g) => (
+              <optgroup key={g.category} label={GROUP_LABELS[g.category]}>
+                {g.items.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.label}
                   </option>
@@ -331,22 +310,22 @@ export function DocumentsSection({
         <div className="flex flex-col gap-2 sm:flex-row">
           <button
             type="button"
-            onClick={download}
-            disabled={busy !== null}
-            className="rounded-lg border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-moss hover:bg-moss/10 disabled:opacity-60"
-          >
-            {busy === "download" ? "Generowanie…" : "Pobierz PDF"}
-          </button>
-          <button
-            type="button"
             onClick={saveToAttachments}
             disabled={busy !== null}
             className="rounded-lg bg-ink px-4 py-2.5 text-sm font-semibold text-white hover:bg-moss disabled:opacity-60"
           >
-            {busy === "save" ? "Zapisywanie…" : "Generuj i zapisz w załącznikach"}
+            {busy === "save" ? "Zapisywanie…" : "Zapisz PDF w sprawie"}
+          </button>
+          <button
+            type="button"
+            onClick={download}
+            disabled={busy !== null}
+            className="rounded-lg border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-moss hover:bg-moss/10 disabled:opacity-60"
+          >
+            {busy === "download" ? "Generowanie…" : "Tylko pobierz"}
           </button>
         </div>
       </div>
-    </section>
+    </div>
   );
 }

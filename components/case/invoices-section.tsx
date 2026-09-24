@@ -519,13 +519,13 @@ function InvoiceEditor({
 
       <details className="rounded-lg border border-stone-200 bg-white/70 p-3 text-sm text-steel">
         <summary className="cursor-pointer list-none font-semibold text-ink">
-          <span className="mr-1 text-moss">ℹ</span> Co to jest „Eksport KSeF (XML)"?
+          <span className="mr-1 text-moss">ℹ</span> Co to jest „Eksport KSeF (XML)”?
         </summary>
         <p className="mt-2 leading-relaxed">
           KSeF (Krajowy System e-Faktur) to rządowa platforma Ministerstwa Finansów, przez którą firmy wystawiają i odbierają
-          faktury w jednolitym formacie XML — schemie <strong>FA(2)</strong>. Przycisk „Eksport KSeF (XML)" pobiera fakturę
+          faktury w jednolitym formacie XML — schemie <strong>FA(2)</strong>. Przycisk „Eksport KSeF (XML)” pobiera fakturę
           właśnie w tym formacie. Taki plik można zaimportować do programu księgowego lub przekazać księgowej, a docelowo
-          wysłać bezpośrednio do KSeF. Dla zwykłej wysyłki do klienta wystarczy „Pobierz PDF".
+          wysłać bezpośrednio do KSeF. Dla zwykłej wysyłki do klienta wystarczy „Pobierz PDF”.
         </p>
       </details>
 
@@ -922,7 +922,7 @@ function InvoiceEditor({
               }}
               className="rounded-md border border-stone-300 bg-white px-2 py-0.5 text-[0.7rem] font-medium text-steel hover:bg-stone-50"
             >
-              + dopisz „z paragonem"
+              + dopisz „z paragonem”
             </button>
           </span>
           <textarea

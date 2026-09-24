@@ -134,7 +134,7 @@ export function TemplateApplyPanel(props: Props) {
           <h4 className="text-sm font-bold text-ink">Zastosuj gotowy szablon kosztorysu</h4>
           <p className="text-xs text-steel">
             Wybierz jeden z zapisanych szablonów — jego pozycje wstawisz jednym kliknięciem, bez ręcznego przepisywania.
-            {props.mode === "draft" && " Po utworzeniu zlecenia edytujesz je w zakładce Wycena / oferta."}
+            {props.mode === "draft" && " Po utworzeniu zlecenia edytujesz je w zakładce Wycena i oferta."}
           </p>
         </div>
         {!embedded && (

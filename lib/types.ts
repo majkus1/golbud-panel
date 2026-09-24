@@ -310,6 +310,9 @@ export type Attachment = {
   description: string | null;
   uploaded_by: string | null;
   created_at: string;
+  /** upload = dodany plik (np. podpisany skan), generated = PDF z wzoru dokumentu. */
+  source: "upload" | "generated";
+  template_id: string | null;
 };
 
 export type WorkHour = {
@@ -332,12 +335,15 @@ export type CaseFormValues = {
   phone: string;
   email: string;
   location: string;
+  client_address: string;
+  client_tax_id: string;
   work_description: string;
   status: CaseStatus;
   source: CaseSource;
   crew_id: string;
   estimated_value: string;
   next_contact_date: string;
+  planned_start_date: string;
   realization_end_date: string;
   contract_number: string;
   contract_date: string;

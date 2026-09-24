@@ -68,7 +68,7 @@ export async function POST(request: Request, context: { params: Promise<{ caseId
 
     const lines = (linesRaw || []) as OfferLine[];
     if (lines.length === 0) {
-      return NextResponse.json({ error: "Kosztorys nie ma pozycji — dodaj pozycje w zakładce Wycena / oferta" }, { status: 400 });
+      return NextResponse.json({ error: "Kosztorys nie ma pozycji — dodaj pozycje w zakładce Wycena i oferta" }, { status: 400 });
     }
 
     const row = caseRow as CaseRow;

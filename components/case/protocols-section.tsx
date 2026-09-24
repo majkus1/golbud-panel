@@ -83,7 +83,7 @@ export function ProtocolsSection({
 
   return (
     <section className="min-w-0 rounded-lg bg-white p-4 shadow-panel sm:p-5">
-      <h2 className="text-lg font-bold text-ink">Protokoły (PDF)</h2>
+      <h2 className="text-base font-bold text-ink">Protokoły odbioru etapów</h2>
       <div className="mt-4 grid gap-3 rounded-xl2 bg-stone-50 p-4 md:grid-cols-3">
         <select value={ptype} onChange={(e) => setPtype(e.target.value as ProtocolType)} className="input">
           {PROTOCOL_TYPES.map((p) => (

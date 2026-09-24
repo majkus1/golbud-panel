@@ -20,12 +20,15 @@ const emptyValues: CaseFormValues = {
   phone: "",
   email: "",
   location: "",
+  client_address: "",
+  client_tax_id: "",
   work_description: "",
   status: "nowe zapytanie",
   source: "telefon",
   crew_id: "",
   estimated_value: "",
   next_contact_date: "",
+  planned_start_date: "",
   realization_end_date: "",
   contract_number: "",
   contract_date: "",
@@ -44,12 +47,15 @@ export const valuesFromCase = (
         phone: row.phone || "",
         email: row.email || "",
         location: row.location || "",
+        client_address: row.client_address || "",
+        client_tax_id: row.client_tax_id || "",
         work_description: row.work_description,
         status: row.status,
         source: row.source,
         crew_id: row.crew_id || "",
         estimated_value: row.estimated_value?.toString() || "",
         next_contact_date: row.next_contact_date || "",
+        planned_start_date: row.planned_start_date || "",
         realization_end_date: row.realization_end_date || "",
         contract_number: row.contract_number || "",
         contract_date: row.contract_date || "",
@@ -66,11 +72,14 @@ export function caseInsertPayload(values: CaseFormValues, organizationId: string
     phone: values.phone.trim() || null,
     email: values.email.trim() || null,
     location: values.location.trim() || null,
+    client_address: values.client_address.trim() || null,
+    client_tax_id: values.client_tax_id.trim() || null,
     work_description: values.work_description.trim(),
     status: values.status,
     source: values.source,
     crew_id: values.crew_id || null,
     next_contact_date: values.next_contact_date || null,
+    planned_start_date: values.planned_start_date || null,
     realization_end_date: values.realization_end_date || null,
     contract_number: values.contract_number.trim() || null,
     contract_date: values.contract_date || null,
@@ -84,11 +93,14 @@ export function caseUpdatePayload(values: CaseFormValues) {
     phone: values.phone.trim() || null,
     email: values.email.trim() || null,
     location: values.location.trim() || null,
+    client_address: values.client_address.trim() || null,
+    client_tax_id: values.client_tax_id.trim() || null,
     work_description: values.work_description.trim(),
     status: values.status,
     source: values.source,
     crew_id: values.crew_id || null,
     next_contact_date: values.next_contact_date || null,
+    planned_start_date: values.planned_start_date || null,
     realization_end_date: values.realization_end_date || null,
     contract_number: values.contract_number.trim() || null,
     contract_date: values.contract_date || null
@@ -206,6 +218,12 @@ export function CaseForm({
           <Field label="Lokalizacja budowy">
             <input value={values.location} onChange={(e) => update("location", e.target.value)} className="input" placeholder="np. ul. Lipowa 4, Kraków" />
           </Field>
+          <Field label="Adres klienta" hint="do umowy, gdy inny niż budowa">
+            <input value={values.client_address} onChange={(e) => update("client_address", e.target.value)} className="input" placeholder="np. ul. Polna 1, 05-850 Ożarów Mazowiecki" />
+          </Field>
+          <Field label="PESEL / NIP" hint="do umowy, opcjonalnie">
+            <input value={values.client_tax_id} onChange={(e) => update("client_tax_id", e.target.value)} className="input" inputMode="numeric" placeholder="np. 85010112345" />
+          </Field>
         </div>
       </FormSection>
 
@@ -268,6 +286,9 @@ export function CaseForm({
           <Field label="Termin kolejnego kontaktu">
             <DateInput value={values.next_contact_date} onChange={(e) => update("next_contact_date", e.target.value)} />
           </Field>
+          <Field label="Planowane rozpoczęcie">
+            <DateInput value={values.planned_start_date} onChange={(e) => update("planned_start_date", e.target.value)} />
+          </Field>
           <Field label="Planowany koniec realizacji">
             <DateInput value={values.realization_end_date} onChange={(e) => update("realization_end_date", e.target.value)} />
           </Field>
@@ -296,7 +317,7 @@ export function CaseForm({
         <FormSection
           step="5"
           title="Kosztorys (opcjonalnie)"
-          desc="Zastosuj gotowy szablon albo wgraj plik od kosztorysanta — pozycje trafią do wyceny. Po utworzeniu zlecenia edytujesz je w zakładce Wycena / oferta."
+          desc="Zastosuj gotowy szablon albo wgraj plik od kosztorysanta — pozycje trafią do wyceny. Po utworzeniu zlecenia edytujesz je w zakładce Wycena i oferta."
         >
           <div className="grid gap-3">
             <TemplateApplyPanel

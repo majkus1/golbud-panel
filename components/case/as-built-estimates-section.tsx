@@ -128,7 +128,7 @@ export function AsBuiltEstimatesSection({
       return;
     }
     if (selectedLines.length === 0) {
-      showToast("Brak pozycji — uzupełnij kosztorys w zakładce Wycena / oferta", "error");
+      showToast("Brak pozycji — uzupełnij kosztorys w zakładce Wycena i oferta", "error");
       return;
     }
 
@@ -189,7 +189,7 @@ export function AsBuiltEstimatesSection({
           <p className="mt-1 text-amber-800/90">
             Najpierw dodaj wariant i pozycje w{" "}
             <Link href={`/cases/${caseId}?tab=offer`} className="font-semibold underline">
-              Wycena / oferta
+              Wycena i oferta
             </Link>
             .
           </p>

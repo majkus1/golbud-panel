@@ -49,17 +49,16 @@ export const PROTOCOL_TYPES = ["po ociepleniu", "po siatce", "po tynku", "odbió
 
 export type ProtocolType = (typeof PROTOCOL_TYPES)[number];
 
+/**
+ * Etapy harmonogramu zakładane w nowej sprawie — nazwy od Dawida (11.09), zgodne
+ * z protokołami odbioru. Istniejące sprawy zachowują swoje etapy.
+ */
 export const DEFAULT_SCHEDULE_TITLES = [
-  "Podpisanie umowy",
-  "Zaliczka",
-  "Zamówienie materiału",
-  "Dostawa materiału",
-  "Start prac",
-  "Etap po ociepleniu",
-  "Etap po siatce",
-  "Tynkowanie",
-  "Odbiór",
-  "Faktura końcowa"
+  "Odbiór ocieplenia",
+  "Odbiór warstwy zbrojonej",
+  "Wykonanie tynku elewacyjnego",
+  "Odbiór końcowy",
+  "Wystawienie faktury końcowej"
 ] as const;
 
 export const MEMBER_ROLES = ["owner", "office", "sales", "manager", "brygadzista", "podwykonawca", "member"] as const;

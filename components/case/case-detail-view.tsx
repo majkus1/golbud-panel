@@ -6,7 +6,6 @@ import { useParams, usePathname, useRouter, useSearchParams } from "next/navigat
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiAssistantPanel } from "@/components/ai-assistant-panel";
 import { CaseSubcontractorsPanel } from "@/components/case-subcontractors-panel";
-import { AsBuiltEstimatesSection } from "@/components/case/as-built-estimates-section";
 import { CaseCostsSection } from "@/components/case/case-costs-section";
 import { CaseEmailsSection } from "@/components/case/case-emails-section";
 import { EstimateImport } from "@/components/case/estimate-import";
@@ -27,7 +26,6 @@ import { StatusBadge } from "@/components/status-badge";
 import { TasksPanel } from "@/components/tasks-panel";
 import { showToast } from "@/components/toast";
 import { MEMBER_ROLE_LABELS, UNITS } from "@/lib/domain";
-import { AS_BUILT_ESTIMATE_LABEL, AS_BUILT_ESTIMATE_TITLE } from "@/lib/as-built-estimate";
 import { downloadAuthenticatedPdf } from "@/lib/download-authenticated-pdf";
 import { formatDate, formatDateTime, formatMoney, isDue } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
@@ -36,54 +34,12 @@ import { ScheduleSection } from "@/components/case/schedule-section";
 import { PaymentsSection } from "@/components/case/payments-section";
 import { RemindersSection } from "@/components/case/reminders-section";
 import { ExtrasSection } from "@/components/case/extras-section";
-import { ProtocolsSection } from "@/components/case/protocols-section";
-import { DocumentsSection } from "@/components/case/documents-section";
-import { AttachmentsSection } from "@/components/case/attachments-section";
+import { ContractTab } from "@/components/case/contract-tab";
+import { DocumentationTab } from "@/components/case/documentation-tab";
+import { resolveTabParam, stepToTab, visibleTabs, type CaseTab, type DocSection } from "@/lib/case-tabs";
 import { btnSectionAdd } from "@/components/case/case-ui";
 
-type Tab =
-  | "overview"
-  | "offer"
-  | "invoices"
-  | "schedule"
-  | "payments"
-  | "costs"
-  | "reminders"
-  | "extras"
-  | "protocols"
-  | "documents"
-  | "as-built"
-  | "files"
-  | "notes"
-  | "emails"
-  | "tasks"
-  | "subcontractors"
-  | "assistant";
-
-const primaryTabs: { id: Tab; label: string }[] = [
-  { id: "overview", label: "Podsumowanie" },
-  { id: "offer", label: "Wycena i oferta" },
-  { id: "invoices", label: "Faktury" },
-  { id: "schedule", label: "Harmonogram" },
-  { id: "payments", label: "Płatności" },
-  { id: "costs", label: "Koszty" },
-  { id: "assistant", label: "Asystent AI" },
-  { id: "tasks", label: "Zadania" },
-  { id: "emails", label: "Korespondencja" },
-  { id: "notes", label: "Notatki" },
-];
-
-const secondaryTabs: { id: Tab; label: string }[] = [
-  { id: "reminders", label: "Przypomnienia" },
-  { id: "subcontractors", label: "Podwykonawcy" },
-  { id: "extras", label: "Roboty dodatkowe" },
-  { id: "protocols", label: "Protokoły" },
-  { id: "as-built", label: AS_BUILT_ESTIMATE_LABEL },
-  { id: "documents", label: "Dokumenty" },
-  { id: "files", label: "Pliki" },
-];
-
-const ALL_TAB_IDS = new Set<Tab>([...primaryTabs, ...secondaryTabs].map((t) => t.id));
+type Tab = CaseTab;
 
 /** Kompaktowe przyciski akcji — mobile first. */
 // „Edytuj dane" to zwykła akcja pomocnicza, nie główne działanie na karcie — stąd wariant
@@ -100,22 +56,6 @@ function tabBtnClass(active: boolean): string {
   }`;
 }
 
-/**
- * Zakładka Asystenta wyróżnia się akcentem bursztynowym, ale nieaktywna zachowuje się
- * jak pozostałe — ciemne tło zarezerwowane jest dla zakładki, na której faktycznie jesteśmy.
- */
-function aiTabBtnClass(active: boolean): string {
-  return `shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-black transition sm:rounded-lg sm:px-3 sm:py-2 sm:text-sm ${
-    active
-      ? "bg-ink text-white shadow-sm"
-      : "bg-amberline/10 text-ink ring-1 ring-amberline/50 hover:bg-amberline/20"
-  }`;
-}
-
-function parseTab(value: string | null): Tab {
-  return value && ALL_TAB_IDS.has(value as Tab) ? (value as Tab) : "overview";
-}
-
 export function CaseDetailView({ organizationId, userId }: { organizationId: string; userId: string }) {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -130,35 +70,23 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
   const fieldView = isFieldRole(role);
   const showAssistant = canUseAssistant(role);
 
-  const visiblePrimaryTabs = useMemo(() => {
-    return primaryTabs.filter((t) => {
-      if (!showFinances && (t.id === "invoices" || t.id === "payments" || t.id === "costs")) return false;
-      if (fieldView && (t.id === "offer" || t.id === "invoices" || t.id === "payments" || t.id === "costs")) return false;
-      // Korespondencja z klientem to dana handlowa — role terenowe jej nie widzą.
-      if (t.id === "emails" && fieldView) return false;
-      if (t.id === "assistant" && !showAssistant) return false;
-      return true;
-    });
-  }, [showFinances, fieldView, showAssistant]);
-  const visibleSecondaryTabs = useMemo(() => {
-    return secondaryTabs.filter((t) => {
-      if (!showFinances && t.id === "reminders") return false;
-      if (fieldView && ["reminders", "subcontractors", "extras", "documents", "as-built"].includes(t.id)) return false;
-      return true;
-    });
-  }, [showFinances, fieldView]);
+  // Układ i widoczność zakładek według roli — w jednym miejscu (lib/case-tabs.ts).
+  const viewer = useMemo(() => ({ fieldView, showFinances, showAssistant }), [fieldView, showFinances, showAssistant]);
+  const { primary: visiblePrimaryTabs, more: visibleSecondaryTabs } = useMemo(() => visibleTabs(viewer), [viewer]);
   const allowedTabIds = useMemo(
     () => new Set<Tab>([...visiblePrimaryTabs, ...visibleSecondaryTabs].map((t) => t.id)),
     [visiblePrimaryTabs, visibleSecondaryTabs]
   );
 
-  const [tab, setTab] = useState<Tab>(() => parseTab(searchParams.get("tab")));
+  const [tab, setTab] = useState<Tab>(() => resolveTabParam(searchParams.get("tab")).tab);
+  const [docSection, setDocSection] = useState<DocSection | undefined>(() => resolveTabParam(searchParams.get("tab")).section);
   const [showMore, setShowMore] = useState(false);
 
   // Synchronizacja aktywnej zakładki z adresem URL (?tab=...) — odświeżenie/udostępnienie linku zachowuje widok.
   const selectTab = useCallback(
-    (next: Tab) => {
+    (next: Tab, section?: DocSection) => {
       setTab(next);
+      setDocSection(section);
       const params = new URLSearchParams(searchParams.toString());
       if (next === "overview") params.delete("tab");
       else params.set("tab", next);
@@ -168,13 +96,23 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
     [pathname, router, searchParams]
   );
 
-  // Zmiana zakładki z zewnątrz (np. przycisk wstecz przeglądarki) aktualizuje stan.
+  // Zmiana zakładki z zewnątrz (przycisk wstecz, stary link ?tab=protocols) aktualizuje stan.
   useEffect(() => {
-    const fromUrl = parseTab(searchParams.get("tab"));
-    setTab((prev) => (prev === fromUrl ? prev : fromUrl));
-  }, [searchParams]);
+    const raw = searchParams.get("tab");
+    const resolved = resolveTabParam(raw);
+    setTab((prev) => (prev === resolved.tab ? prev : resolved.tab));
+    if (resolved.section) setDocSection(resolved.section);
+    // Stary adres zakładki podmieniamy na nowy, żeby udostępniony link był aktualny.
+    if (raw && raw !== resolved.tab) {
+      const params = new URLSearchParams(searchParams.toString());
+      if (resolved.tab === "overview") params.delete("tab");
+      else params.set("tab", resolved.tab);
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    }
+  }, [searchParams, pathname, router]);
 
-  // Rola bez dostępu do zakładki (np. faktury) → wróć do przeglądu.
+  // Rola bez dostępu do zakładki (np. faktury) → wróć do podsumowania.
   useEffect(() => {
     setTab((prev) => (allowedTabIds.has(prev) ? prev : "overview"));
   }, [allowedTabIds]);
@@ -200,7 +138,6 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
 
   const [selVariant, setSelVariant] = useState<string | null>(null);
   const [newVariantName, setNewVariantName] = useState("Wariant podstawowy");
-  const [contractAdvancePct, setContractAdvancePct] = useState(30);
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
@@ -327,15 +264,6 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
     await downloadAuthenticatedPdf(`/api/cases/${caseId}/variants/${selVariant}/pdf`, `${base || "oferta"}.pdf`);
   };
 
-  const openContractPdf = async () => {
-    if (!selVariant) return;
-    const pct = Math.min(100, Math.max(0, Number(contractAdvancePct) || 0));
-    await downloadAuthenticatedPdf(
-      `/api/cases/${caseId}/contract/pdf?variantId=${selVariant}&advancePct=${pct}`,
-      "umowa.pdf"
-    );
-  };
-
   const addVariant = async () => {
     const name = newVariantName.trim() || "Nowy wariant";
     const maxSort = variants.reduce((m, v) => Math.max(m, v.sort_order), -1);
@@ -354,6 +282,40 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
       setSelVariant(data.id);
       await load();
     }
+  };
+
+  const renameVariant = async (variant: OfferVariant, name: string) => {
+    const next = name.trim();
+    if (!next || next === variant.name) return;
+    const { error } = await supabase.from("offer_variants").update({ name: next }).eq("id", variant.id);
+    if (error) {
+      showToast("Nie udało się zmienić nazwy wariantu", "error");
+      return;
+    }
+    showToast("Zmieniono nazwę wariantu");
+    await load();
+  };
+
+  // Ostatniego wariantu nie usuwamy — sprawa bez wariantu nie ma gdzie trzymać wyceny.
+  const deleteVariant = async (variant: OfferVariant) => {
+    if (variants.length <= 1) {
+      showToast("To jedyny wariant — dodaj inny, zanim usuniesz ten", "error");
+      return;
+    }
+    const lineCount = (linesByVariant[variant.id] || []).length;
+    const ok = await confirm({
+      title: "Usunąć wariant?",
+      message: `Wariant „${variant.name}” zniknie razem z ${lineCount} ${lineCount === 1 ? "pozycją" : "pozycjami"} kosztorysu. Faktury i kosztorysy powykonawcze z niego zostaną, ale bez powiązania z wariantem.`
+    });
+    if (!ok) return;
+    const { error } = await supabase.from("offer_variants").delete().eq("id", variant.id);
+    if (error) {
+      showToast("Nie udało się usunąć wariantu", "error");
+      return;
+    }
+    showToast("Usunięto wariant");
+    setSelVariant(variants.find((v) => v.id !== variant.id)?.id ?? null);
+    await load();
   };
 
   const addLine = async (section: "labor" | "material") => {
@@ -475,19 +437,13 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
                 key={t.id}
                 type="button"
                 onClick={() => selectTab(t.id)}
-                className={t.id === "assistant" ? aiTabBtnClass(tab === t.id) : tabBtnClass(tab === t.id)}
+                className={tabBtnClass(tab === t.id)}
               >
-                {t.id === "assistant" ? (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="rounded-md bg-amberline px-1.5 py-0.5 text-[0.65rem] font-black tracking-[0.12em] text-ink">AI</span>
-                    GolBud AI
-                  </span>
-                ) : (
-                  t.label
-                )}
+                {t.label}
               </button>
             ))}
           </div>
+          {visibleSecondaryTabs.length > 0 && (
           <div ref={moreRef} className="relative shrink-0">
             {(() => {
               const activeSecondary = visibleSecondaryTabs.find((t) => t.id === tab);
@@ -528,12 +484,21 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
               </div>
             )}
           </div>
+          )}
         </div>
       </nav>
 
       {tab === "overview" && (
         <section className="grid min-w-0 gap-4 rounded-lg bg-white p-4 shadow-panel sm:p-5">
-          <ProcessTimeline status={caseRow.status} embedded />
+          <ProcessTimeline
+            status={caseRow.status}
+            embedded
+            isStepClickable={(step) => stepToTab(step, viewer) !== null}
+            onStepClick={(step) => {
+              const target = stepToTab(step, viewer);
+              if (target) selectTab(target.tab, target.section);
+            }}
+          />
 
           <div className="grid gap-4 lg:grid-cols-2">
             <div>
@@ -551,6 +516,18 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
                 <dt className="font-semibold text-ink">Lokalizacja</dt>
                 <dd>{caseRow.location || "—"}</dd>
               </div>
+              {!fieldView && caseRow.client_address && (
+                <div>
+                  <dt className="font-semibold text-ink">Adres klienta</dt>
+                  <dd>{caseRow.client_address}</dd>
+                </div>
+              )}
+              {!fieldView && caseRow.client_tax_id && (
+                <div>
+                  <dt className="font-semibold text-ink">PESEL / NIP</dt>
+                  <dd>{caseRow.client_tax_id}</dd>
+                </div>
+              )}
               {!fieldView && (
                 <div>
                   <dt className="font-semibold text-ink">Źródło</dt>
@@ -570,6 +547,10 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
                     </dd>
                   </div>
                 )}
+                <div>
+                  <dt className="font-semibold text-ink">Planowane rozpoczęcie</dt>
+                  <dd>{formatDate(caseRow.planned_start_date)}</dd>
+                </div>
                 <div>
                   <dt className="font-semibold text-ink">Planowany koniec</dt>
                   <dd>{formatDate(caseRow.realization_end_date)}</dd>
@@ -721,7 +702,18 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
             {selVariant &&
               (() => {
                 const v = variants.find((x) => x.id === selVariant);
-                return v ? <VariantScopeEditor key={v.id} variant={v} onSaved={load} /> : null;
+                return v ? (
+                  <>
+                    <VariantNameEditor
+                      key={`name-${v.id}-${v.name}`}
+                      variant={v}
+                      canDelete={variants.length > 1}
+                      onRename={(name) => renameVariant(v, name)}
+                      onDelete={() => deleteVariant(v)}
+                    />
+                    <VariantScopeEditor key={v.id} variant={v} onSaved={load} />
+                  </>
+                ) : null;
               })()}
           </section>
 
@@ -996,61 +988,32 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
             </section>
           )}
 
-          {/* KROK 3 — dokumenty */}
+          {/* KROK 3 — oferta dla klienta. Umowa ma własną zakładkę, kosztorys powykonawczy jest w Dokumentacji. */}
           {selVariant && (
             <section className="min-w-0 rounded-xl2 border border-stone-200/80 bg-white p-4 shadow-card sm:p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-steel">Krok 3 · Dokumenty</p>
-              <h2 className="mt-0.5 text-base font-bold text-ink">Generuj dokumenty z tego wariantu</h2>
-
-              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <div className="flex flex-col rounded-xl2 border border-stone-200 bg-stone-50/60 p-4">
-                  <p className="font-semibold text-ink">Oferta / kosztorys (PDF)</p>
-                  <p className="mt-0.5 flex-1 text-xs text-steel">Estetyczny PDF z logo do wysłania klientowi.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-steel">Krok 3 · Oferta</p>
+              <div className="mt-0.5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-ink">Oferta dla klienta (PDF)</h2>
+                  <p className="mt-0.5 text-xs text-steel">PDF z logo i danymi firmy, z pozycjami wybranego wariantu.</p>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <button
                     type="button"
                     onClick={() => void openOfferPdf()}
-                    className="mt-3 rounded-lg border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-ink hover:bg-stone-50"
+                    className="rounded-lg bg-ink px-4 py-2.5 text-sm font-semibold text-white hover:bg-moss"
                   >
                     Pobierz ofertę (PDF)
                   </button>
-                </div>
-                <div className="flex flex-col rounded-xl2 border border-moss/30 bg-moss/5 p-4">
-                  <p className="font-semibold text-ink">{AS_BUILT_ESTIMATE_LABEL}</p>
-                  <p className="mt-0.5 flex-1 text-xs text-steel">
-                    {AS_BUILT_ESTIMATE_TITLE} — wartości netto, z potrąceniem wpłaconych zaliczek.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => selectTab("as-built")}
-                    className="mt-3 rounded-lg bg-moss px-4 py-2.5 text-sm font-semibold text-white hover:bg-ink"
-                  >
-                    Generuj kosztorys powykonawczy
-                  </button>
-                </div>
-                <div className="flex flex-col rounded-xl2 border border-stone-200 bg-stone-50/60 p-4 sm:col-span-2 lg:col-span-1">
-                  <p className="font-semibold text-ink">Umowa o roboty budowlane (PDF)</p>
-                  <p className="mt-0.5 flex-1 text-xs text-steel">Umowa z kosztorysem, terminami i harmonogramem płatności z zaliczką.</p>
-                  <div className="mt-3 flex items-center gap-2">
-                    <label className="flex items-center gap-1.5 text-xs font-medium text-steel">
-                      Zaliczka
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={contractAdvancePct}
-                        onChange={(e) => setContractAdvancePct(Number(e.target.value))}
-                        className="input w-16 py-1.5 text-sm"
-                      />
-                      %
-                    </label>
+                  {!fieldView && (
                     <button
                       type="button"
-                      onClick={() => void openContractPdf()}
-                      className="flex-1 rounded-lg bg-ink px-4 py-2.5 text-sm font-semibold text-white hover:bg-moss"
+                      onClick={() => selectTab("umowa")}
+                      className="rounded-lg border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-ink hover:bg-stone-50"
                     >
-                      Generuj umowę (PDF)
+                      Dalej: umowa →
                     </button>
-                  </div>
+                  )}
                 </div>
               </div>
             </section>
@@ -1107,38 +1070,37 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
 
       {tab === "subcontractors" && <CaseSubcontractorsPanel caseId={caseId} />}
 
-      {tab === "protocols" && (
-        <ProtocolsSection caseId={caseId} organizationId={organizationId} userId={userId} items={protocols} onChange={load} />
-      )}
-
-      {tab === "as-built" && (
-        <AsBuiltEstimatesSection
-          caseId={caseId}
-          caseRow={caseRow}
-          variants={variants}
-          linesByVariant={linesByVariant}
-          payments={payments}
-          showFinances={showFinances}
-          estimates={asBuiltEstimates}
-          initialVariantId={selVariant}
-          onChange={load}
-        />
-      )}
-
-      {tab === "documents" && (
-        <DocumentsSection
+      {tab === "umowa" && (
+        <ContractTab
           caseId={caseId}
           organizationId={organizationId}
           userId={userId}
           caseRow={caseRow}
           payments={payments}
+          attachments={attachments}
           onChange={load}
-          onOpenAsBuilt={() => selectTab("as-built")}
         />
       )}
 
-      {tab === "files" && (
-        <AttachmentsSection caseId={caseId} organizationId={organizationId} userId={userId} items={attachments} onChange={load} />
+      {tab === "dokumentacja" && (
+        <DocumentationTab
+          caseId={caseId}
+          organizationId={organizationId}
+          userId={userId}
+          caseRow={caseRow}
+          payments={payments}
+          attachments={attachments}
+          protocols={protocols}
+          asBuiltEstimates={asBuiltEstimates}
+          variants={variants}
+          linesByVariant={linesByVariant}
+          selectedVariantId={selVariant}
+          fieldView={fieldView}
+          showFinances={showFinances}
+          focusSection={docSection}
+          onOpenContract={() => selectTab("umowa")}
+          onChange={load}
+        />
       )}
 
       {tab === "emails" && caseRow && (
@@ -1169,6 +1131,48 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
         onConfirm={() => void deleteCase()}
         loading={deleting}
       />
+    </div>
+  );
+}
+
+function VariantNameEditor({
+  variant,
+  canDelete,
+  onRename,
+  onDelete
+}: {
+  variant: OfferVariant;
+  canDelete: boolean;
+  onRename: (name: string) => Promise<void>;
+  onDelete: () => Promise<void>;
+}) {
+  const [name, setName] = useState(variant.name);
+  const changed = name.trim() !== variant.name && name.trim() !== "";
+  return (
+    <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+      <label className="grid min-w-0 flex-1 gap-1 text-xs font-semibold text-steel">
+        Nazwa wybranego wariantu
+        <input className="input text-sm" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && changed && void onRename(name)} />
+      </label>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={!changed}
+          onClick={() => void onRename(name)}
+          className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-xs font-semibold text-ink hover:bg-stone-50 disabled:opacity-50"
+        >
+          Zmień nazwę
+        </button>
+        <button
+          type="button"
+          disabled={!canDelete}
+          title={canDelete ? "Usuń ten wariant" : "To jedyny wariant w sprawie"}
+          onClick={() => void onDelete()}
+          className="rounded-lg px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-40"
+        >
+          Usuń wariant
+        </button>
+      </div>
     </div>
   );
 }
