@@ -1,3 +1,4 @@
+import type { OfferSection } from "@/lib/offer-sections";
 import type {
   AttachmentCategory,
   CaseSource,
@@ -190,7 +191,7 @@ export type OfferLine = {
   id: string;
   organization_id: string;
   variant_id: string;
-  section: "labor" | "material";
+  section: OfferSection;
   label: string;
   unit: Unit;
   quantity: number;
@@ -357,7 +358,7 @@ export type CaseFormValues = {
 
 /** Pozycja kosztorysu przed zapisem do oferty (import CSV/XLSX). */
 export type ImportedEstimateLine = {
-  section: "labor" | "material";
+  section: OfferSection;
   name: string;
   unit: Unit;
   quantity: number;
@@ -386,7 +387,7 @@ export type EstimateTemplateLine = {
   id: string;
   organization_id: string;
   template_id: string;
-  section: "labor" | "material";
+  section: OfferSection;
   label: string;
   unit: Unit;
   quantity: number;

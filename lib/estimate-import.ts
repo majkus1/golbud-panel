@@ -1,4 +1,5 @@
 import { UNITS } from "@/lib/domain";
+import type { OfferSection } from "@/lib/offer-sections";
 import type { EstimateImportDraft, ImportedEstimateLine, Unit } from "@/lib/types";
 
 /**
@@ -109,6 +110,9 @@ export function normalizeUnit(value: RawCell): Unit {
   if (!raw) return "szt.";
   if (UNIT_SET.has(String(value).trim())) return String(value).trim() as Unit;
   if (/(m2|m²|m\^2|metr.?kw)/.test(raw)) return "m²";
+  if (/(m3|m³|m\^3|metr.?sze)/.test(raw)) return "m³";
+  if (/^(kg|kilogram)/.test(raw)) return "kg";
+  if (/^(t|ton|tona|tony)\.?$/.test(raw)) return "t";
   if (/^mb$|metr.?bie|^m$/.test(raw)) return "mb";
   if (/(rg|r-g|roboczo|godz)/.test(raw)) return "roboczogodz.";
   if (/(kpl|komplet)/.test(raw)) return "kpl.";
@@ -117,9 +121,16 @@ export function normalizeUnit(value: RawCell): Unit {
   return "szt.";
 }
 
-function guessSection(value: RawCell): "labor" | "material" | null {
+/**
+ * Rodzaj pozycji z kolumny „rodzaj/sekcja” pliku. „Materiał i robocizna” (albo „z materiałem”,
+ * „komplet”) sprawdzamy jako pierwsze — inaczej słowo „robocizna” wygrałoby i pozycja
+ * z materiałem trafiłaby do robocizny.
+ */
+export function guessSection(value: RawCell): OfferSection | null {
   const raw = deburr(String(value ?? ""));
   if (!raw) return null;
+  // \S zamiast \w — w JavaScripcie \w nie obejmuje „ł”, więc „materiał” nie pasowałby do wzorca.
+  if (/(materia\S*\s*(i|\+|z|oraz|&)\s*robocizn|robocizn\S*\s*(i|\+|z|oraz|&)\s*materia|z materia|mat\.?\s*\+\s*rob|kompleks)/.test(raw)) return "mixed";
   if (/(robocizn|montaz|usług|robot|praca)/.test(raw)) return "labor";
   if (/(materia|towar|produkt)/.test(raw)) return "material";
   return null;

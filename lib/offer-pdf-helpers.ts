@@ -1,3 +1,4 @@
+import { OFFER_SECTION_LABELS, groupOfferLines, type OfferSection } from "@/lib/offer-sections";
 import type { OfferLine } from "@/lib/types";
 
 export type PdfOfferLine = {
@@ -11,7 +12,7 @@ export type PdfOfferLine = {
   vatRate: number;
   vatAmount: number;
   grossTotal: number;
-  section: "labor" | "material" | null;
+  section: OfferSection | null;
   isSectionHeader: boolean;
 };
 
@@ -40,16 +41,17 @@ export function roundMoney(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-export function buildPdfLines(
-  laborLines: OfferLine[],
-  materialLines: OfferLine[],
-  defaultVatRate: number
-): PdfOfferLine[] {
+/**
+ * Pozycje do tabeli PDF: grupy w stałej kolejności (robocizna, materiał, materiał i robocizna),
+ * numeracja ciągła przez wszystkie grupy. Grupowanie w jednym miejscu — wcześniej trasy PDF
+ * filtrowały „labor” i „material” same i pozycja innego rodzaju wypadała z oferty.
+ */
+export function buildPdfLines(lines: OfferLine[], defaultVatRate: number): PdfOfferLine[] {
   const vat = defaultVatRate;
   const out: PdfOfferLine[] = [];
   let lp = 0;
 
-  const pushSection = (title: string, section: "labor" | "material") => {
+  const pushSection = (title: string, section: OfferSection) => {
     out.push({
       id: `section-${section}`,
       lp: 0,
@@ -66,10 +68,10 @@ export function buildPdfLines(
     });
   };
 
-  const pushLines = (lines: OfferLine[], section: "labor" | "material") => {
-    if (lines.length === 0) return;
-    pushSection(section === "labor" ? "Robocizna" : "Materiał", section);
-    for (const l of lines) {
+  const pushLines = (group: OfferLine[], section: OfferSection) => {
+    if (group.length === 0) return;
+    pushSection(OFFER_SECTION_LABELS[section], section);
+    for (const l of group) {
       lp += 1;
       const net = roundMoney(Number(l.line_total) || 0);
       const vatAmount = roundMoney((net * vat) / 100);
@@ -91,8 +93,7 @@ export function buildPdfLines(
     }
   };
 
-  pushLines(laborLines, "labor");
-  pushLines(materialLines, "material");
+  for (const group of groupOfferLines(lines)) pushLines(group.lines, group.section);
   return out;
 }
 

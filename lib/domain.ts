@@ -23,7 +23,7 @@ export const CASE_SOURCES = ["Google Ads", "strona", "polecenie", "OLX", "telefo
 
 export type CaseSource = (typeof CASE_SOURCES)[number];
 
-export const UNITS = ["m²", "mb", "szt.", "kpl.", "roboczogodz.", "usługa"] as const;
+export const UNITS = ["m²", "mb", "m³", "szt.", "kpl.", "kg", "t", "roboczogodz.", "godz.", "usługa"] as const;
 
 export type Unit = (typeof UNITS)[number];
 

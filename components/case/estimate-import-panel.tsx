@@ -5,6 +5,7 @@ import { showToast } from "@/components/toast";
 import { Button } from "@/components/ui";
 import type { EstimateImportDraft, ImportedEstimateLine } from "@/lib/types";
 import { parseEstimateFile } from "@/lib/estimate-import";
+import { OFFER_SECTIONS, OFFER_SECTION_SHORT, type OfferSection } from "@/lib/offer-sections";
 import { supabase } from "@/lib/supabase";
 import { insertImportedOfferLines } from "@/lib/offer-lines";
 
@@ -74,13 +75,14 @@ export function EstimatePreviewTable({
                   onChange={(e) =>
                     onRowsChange(
                       rows.map((r, idx) =>
-                        idx === i ? { ...r, section: e.target.value as "labor" | "material" } : r
+                        idx === i ? { ...r, section: e.target.value as OfferSection } : r
                       )
                     )
                   }
                 >
-                  <option value="labor">robocizna</option>
-                  <option value="material">materiał</option>
+                  {OFFER_SECTIONS.map((sec) => (
+                    <option key={sec} value={sec}>{OFFER_SECTION_SHORT[sec]}</option>
+                  ))}
                 </select>
               </td>
               <td className="p-2 text-steel">{line.unit}</td>

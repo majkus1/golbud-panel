@@ -57,14 +57,12 @@ export async function GET(
   const { data: linesRaw } = await supabase.from("offer_lines").select("*").eq("variant_id", variantId).order("sort_order");
 
   const lines = (linesRaw || []) as OfferLine[];
-  const laborLines = lines.filter((l) => l.section === "labor");
-  const materialLines = lines.filter((l) => l.section === "material");
 
   const seller = sellerProfileFromOrganization(org);
   const issue = new Date();
   const validUntil = addDays(issue, seller.validityDays);
   const offerNumber = buildOfferNumber(caseId, variant.name, caseRow.created_at);
-  const pdfLines = buildPdfLines(laborLines, materialLines, seller.defaultVatRate);
+  const pdfLines = buildPdfLines(lines, seller.defaultVatRate);
   const { net: netTotal, vat: vatTotal, gross: grossTotal } = sumPdfLines(pdfLines);
 
   const logoPath = path.join(process.cwd(), "public", "logo-golbud.png");

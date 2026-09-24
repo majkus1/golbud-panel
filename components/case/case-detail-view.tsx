@@ -38,6 +38,7 @@ import { ContractTab } from "@/components/case/contract-tab";
 import { DocumentationTab } from "@/components/case/documentation-tab";
 import { resolveTabParam, stepToTab, visibleTabs, type CaseTab, type DocSection } from "@/lib/case-tabs";
 import { btnSectionAdd } from "@/components/case/case-ui";
+import { OFFER_SECTIONS, OFFER_SECTION_LABELS, OFFER_SECTION_SHORT, OFFER_SECTION_TONES, summarizeOfferLines, type OfferSection } from "@/lib/offer-sections";
 
 type Tab = CaseTab;
 
@@ -245,8 +246,8 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
   };
 
   const selectedLines = useMemo(() => (selVariant ? linesByVariant[selVariant] || [] : []), [linesByVariant, selVariant]);
-  const laborSum = useMemo(() => selectedLines.filter((l) => l.section === "labor").reduce((s, l) => s + Number(l.line_total), 0), [selectedLines]);
-  const matSum = useMemo(() => selectedLines.filter((l) => l.section === "material").reduce((s, l) => s + Number(l.line_total), 0), [selectedLines]);
+  // Suma ze wszystkich pozycji; podział na rodzaje tylko informacyjnie (lib/offer-sections.ts).
+  const lineSummary = useMemo(() => summarizeOfferLines(selectedLines), [selectedLines]);
 
   const overduePayments = useMemo(
     () =>
@@ -318,14 +319,14 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
     await load();
   };
 
-  const addLine = async (section: "labor" | "material") => {
+  const addLine = async (section: OfferSection) => {
     if (!selVariant) return;
     const maxSort = selectedLines.reduce((m, l) => Math.max(m, l.sort_order), -1);
     await supabase.from("offer_lines").insert({
       organization_id: organizationId,
       variant_id: selVariant,
       section,
-      label: section === "labor" ? "Robocizna — pozycja" : "Materiał — pozycja",
+      label: `${OFFER_SECTION_LABELS[section]} — pozycja`,
       unit: "m²" as Unit,
       quantity: 1,
       unit_rate: 0,
@@ -768,12 +769,15 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
               )}
 
               <div className="mt-3 grid gap-2 rounded-xl2 bg-stone-50 p-3">
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                   <button type="button" onClick={() => addLine("labor")} className="rounded-lg bg-sky-50 px-2.5 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-100 sm:px-3 sm:py-2.5 sm:text-sm">
                     + Robocizna
                   </button>
                   <button type="button" onClick={() => addLine("material")} className="rounded-lg bg-amber-50 px-2.5 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100 sm:px-3 sm:py-2.5 sm:text-sm">
                     + Materiał
+                  </button>
+                  <button type="button" onClick={() => addLine("mixed")} className="rounded-lg bg-violet-50 px-2.5 py-2 text-xs font-semibold text-violet-800 hover:bg-violet-100 sm:px-3 sm:py-2.5 sm:text-sm">
+                    + Materiał i robocizna
                   </button>
                 </div>
                 <label className="grid gap-1 text-xs font-medium text-steel">
@@ -823,21 +827,18 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
                     {selectedLines.map((line) => (
                       <div
                         key={line.id}
-                        className={`relative grid gap-2.5 overflow-hidden rounded-xl2 border p-3.5 pl-4 shadow-card ${
-                          line.section === "labor" ? "border-sky-200 bg-sky-50/30" : "border-amber-200 bg-amber-50/30"
-                        }`}
+                        className={`relative grid gap-2.5 overflow-hidden rounded-xl2 border p-3.5 pl-4 shadow-card ${(OFFER_SECTION_TONES[line.section] ?? OFFER_SECTION_TONES.material).card}`}
                       >
-                        <span className={`absolute inset-y-0 left-0 w-1.5 ${line.section === "labor" ? "bg-sky-400" : "bg-amber-400"}`} aria-hidden />
+                        <span className={`absolute inset-y-0 left-0 w-1.5 ${(OFFER_SECTION_TONES[line.section] ?? OFFER_SECTION_TONES.material).bar}`} aria-hidden />
                         <div className="flex items-center justify-between gap-2">
                           <select
-                            className={`rounded-lg border-0 px-2.5 py-1.5 text-xs font-bold uppercase tracking-wide ring-1 ring-inset focus:ring-2 focus:ring-moss ${
-                              line.section === "labor" ? "bg-sky-100 text-sky-700 ring-sky-200" : "bg-amber-100 text-amber-800 ring-amber-200"
-                            }`}
+                            className={`rounded-lg border-0 px-2.5 py-1.5 text-xs font-bold uppercase tracking-wide ring-1 ring-inset focus:ring-2 focus:ring-moss ${(OFFER_SECTION_TONES[line.section] ?? OFFER_SECTION_TONES.material).chip}`}
                             value={line.section}
-                            onChange={(e) => void updateLine(line, { section: e.target.value as "labor" | "material" })}
+                            onChange={(e) => void updateLine(line, { section: e.target.value as OfferSection })}
                           >
-                            <option value="labor">robocizna</option>
-                            <option value="material">materiał</option>
+                            {OFFER_SECTIONS.map((sec) => (
+                              <option key={sec} value={sec}>{OFFER_SECTION_SHORT[sec]}</option>
+                            ))}
                           </select>
                           <button type="button" className="rounded-lg px-2 py-1 text-xs font-medium text-rose-500 hover:bg-rose-50" onClick={() => void deleteLine(line.id)}>
                             Usuń
@@ -913,10 +914,11 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
                               <select
                                 className="input py-1 text-xs"
                                 value={line.section}
-                                onChange={(e) => void updateLine(line, { section: e.target.value as "labor" | "material" })}
+                                onChange={(e) => void updateLine(line, { section: e.target.value as OfferSection })}
                               >
-                                <option value="labor">robocizna</option>
-                                <option value="material">materiał</option>
+                                {OFFER_SECTIONS.map((sec) => (
+                                  <option key={sec} value={sec}>{OFFER_SECTION_SHORT[sec]}</option>
+                                ))}
                               </select>
                             </td>
                             <td className="py-2 pr-2">
@@ -969,18 +971,16 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
                   </div>
 
                   {/* Podsumowanie */}
-                  <div className="mt-4 grid grid-cols-3 gap-2">
-                    <div className="rounded-xl2 border border-sky-200/70 bg-sky-50/50 p-3">
-                      <p className="text-[0.7rem] font-medium uppercase tracking-wide text-sky-700">Robocizna</p>
-                      <p className="mt-0.5 text-sm font-bold text-ink sm:text-base">{formatMoney(laborSum)}</p>
-                    </div>
-                    <div className="rounded-xl2 border border-amber-200/70 bg-amber-50/50 p-3">
-                      <p className="text-[0.7rem] font-medium uppercase tracking-wide text-amber-700">Materiał</p>
-                      <p className="mt-0.5 text-sm font-bold text-ink sm:text-base">{formatMoney(matSum)}</p>
-                    </div>
+                  <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                    {OFFER_SECTIONS.filter((sec) => sec !== "mixed" || selectedLines.some((l) => l.section === "mixed")).map((sec) => (
+                      <div key={sec} className={`rounded-xl2 border p-3 ${OFFER_SECTION_TONES[sec].tile}`}>
+                        <p className={`text-[0.7rem] font-medium uppercase tracking-wide ${OFFER_SECTION_TONES[sec].tileLabel}`}>{OFFER_SECTION_LABELS[sec]}</p>
+                        <p className="mt-0.5 text-sm font-bold text-ink sm:text-base">{formatMoney(lineSummary.bySection[sec])}</p>
+                      </div>
+                    ))}
                     <div className="rounded-xl2 border border-moss/30 bg-moss/10 p-3">
                       <p className="text-[0.7rem] font-medium uppercase tracking-wide text-moss-dark">Razem netto</p>
-                      <p className="mt-0.5 text-sm font-bold text-moss-dark sm:text-base">{formatMoney(laborSum + matSum)}</p>
+                      <p className="mt-0.5 text-sm font-bold text-moss-dark sm:text-base">{formatMoney(lineSummary.total)}</p>
                     </div>
                   </div>
                 </>

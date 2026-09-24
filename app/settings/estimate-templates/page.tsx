@@ -8,6 +8,7 @@ import { showToast } from "@/components/toast";
 import { useConfirm } from "@/components/use-confirm";
 import { canManageOrg, useOrg } from "@/components/org-context";
 import { formatMoney } from "@/lib/format";
+import { OFFER_SECTIONS, OFFER_SECTION_LABELS, OFFER_SECTION_SHORT, OFFER_SECTION_TONES, summarizeOfferLines, type OfferSection } from "@/lib/offer-sections";
 import { supabase } from "@/lib/supabase";
 import type { CatalogItem, EstimateTemplate, EstimateTemplateLine, Unit } from "@/lib/types";
 import { UNITS } from "@/lib/types";
@@ -61,8 +62,7 @@ function EstimateTemplatesInner() {
 
   const selectedTemplate = templates.find((t) => t.id === selectedId) || null;
   const selectedLines = selectedId ? linesByTemplate[selectedId] || [] : [];
-  const laborSum = useMemo(() => selectedLines.filter((l) => l.section === "labor").reduce((s, l) => s + Number(l.line_total), 0), [selectedLines]);
-  const matSum = useMemo(() => selectedLines.filter((l) => l.section === "material").reduce((s, l) => s + Number(l.line_total), 0), [selectedLines]);
+  const lineSummary = useMemo(() => summarizeOfferLines(selectedLines), [selectedLines]);
 
   const addTemplate = async () => {
     if (!organizationId || !newName.trim()) return;
@@ -107,14 +107,14 @@ function EstimateTemplatesInner() {
     await load();
   };
 
-  const addLine = async (section: "labor" | "material") => {
+  const addLine = async (section: OfferSection) => {
     if (!selectedId) return;
     const maxSort = selectedLines.reduce((m, l) => Math.max(m, l.sort_order), -1);
     await supabase.from("estimate_template_lines").insert({
       organization_id: organizationId,
       template_id: selectedId,
       section,
-      label: section === "labor" ? "Robocizna — pozycja" : "Materiał — pozycja",
+      label: `${OFFER_SECTION_LABELS[section]} — pozycja`,
       unit: "m²" as Unit,
       quantity: 1,
       unit_rate: 0,
@@ -252,12 +252,15 @@ function EstimateTemplatesInner() {
             </div>
 
             <div className="mt-4 grid gap-2 rounded-xl2 bg-stone-50 p-3">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 <button type="button" onClick={() => void addLine("labor")} className="rounded-lg bg-sky-50 px-3 py-2.5 text-sm font-semibold text-sky-700 hover:bg-sky-100">
                   + Robocizna
                 </button>
                 <button type="button" onClick={() => void addLine("material")} className="rounded-lg bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-800 hover:bg-amber-100">
                   + Materiał
+                </button>
+                <button type="button" onClick={() => void addLine("mixed")} className="rounded-lg bg-violet-50 px-3 py-2.5 text-sm font-semibold text-violet-800 hover:bg-violet-100">
+                  + Materiał i robocizna
                 </button>
               </div>
               <label className="grid gap-1 text-xs font-medium text-steel">
@@ -301,9 +304,10 @@ function EstimateTemplatesInner() {
                     {selectedLines.map((line) => (
                       <tr key={line.id}>
                         <td className="py-2 pr-2">
-                          <select className="input py-1 text-xs" value={line.section} onChange={(e) => void updateLine(line, { section: e.target.value as "labor" | "material" })}>
-                            <option value="labor">robocizna</option>
-                            <option value="material">materiał</option>
+                          <select className="input py-1 text-xs" value={line.section} onChange={(e) => void updateLine(line, { section: e.target.value as OfferSection })}>
+                            {OFFER_SECTIONS.map((sec) => (
+                              <option key={sec} value={sec}>{OFFER_SECTION_SHORT[sec]}</option>
+                            ))}
                           </select>
                         </td>
                         <td className="py-2 pr-2">
@@ -348,18 +352,16 @@ function EstimateTemplatesInner() {
               </div>
             )}
 
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              <div className="rounded-xl2 border border-sky-200/70 bg-sky-50/50 p-3">
-                <p className="text-[0.7rem] font-medium uppercase tracking-wide text-sky-700">Robocizna</p>
-                <p className="mt-0.5 text-sm font-bold text-ink">{formatMoney(laborSum)}</p>
-              </div>
-              <div className="rounded-xl2 border border-amber-200/70 bg-amber-50/50 p-3">
-                <p className="text-[0.7rem] font-medium uppercase tracking-wide text-amber-700">Materiał</p>
-                <p className="mt-0.5 text-sm font-bold text-ink">{formatMoney(matSum)}</p>
-              </div>
+            <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
+              {OFFER_SECTIONS.filter((sec) => sec !== "mixed" || selectedLines.some((l) => l.section === "mixed")).map((sec) => (
+                <div key={sec} className={`rounded-xl2 border p-3 ${OFFER_SECTION_TONES[sec].tile}`}>
+                  <p className={`text-[0.7rem] font-medium uppercase tracking-wide ${OFFER_SECTION_TONES[sec].tileLabel}`}>{OFFER_SECTION_LABELS[sec]}</p>
+                  <p className="mt-0.5 text-sm font-bold text-ink">{formatMoney(lineSummary.bySection[sec])}</p>
+                </div>
+              ))}
               <div className="rounded-xl2 border border-moss/30 bg-moss/10 p-3">
                 <p className="text-[0.7rem] font-medium uppercase tracking-wide text-moss-dark">Razem netto</p>
-                <p className="mt-0.5 text-sm font-bold text-moss-dark">{formatMoney(laborSum + matSum)}</p>
+                <p className="mt-0.5 text-sm font-bold text-moss-dark">{formatMoney(lineSummary.total)}</p>
               </div>
             </div>
           </section>

@@ -68,11 +68,7 @@ export async function GET(request: Request, context: { params: Promise<{ caseId:
   const { data: linesRaw } = await supabase.from("offer_lines").select("*").eq("variant_id", variantId).order("sort_order");
   const lines = (linesRaw || []) as OfferLine[];
   const seller = sellerProfileFromOrganization(org);
-  const pdfLines = buildPdfLines(
-    lines.filter((l) => l.section === "labor"),
-    lines.filter((l) => l.section === "material"),
-    seller.defaultVatRate
-  );
+  const pdfLines = buildPdfLines(lines, seller.defaultVatRate);
   const { net, vat, gross } = sumPdfLines(pdfLines);
   const advanceAmount = roundMoney((gross * advancePct) / 100);
   const remainderAmount = roundMoney(gross - advanceAmount);
