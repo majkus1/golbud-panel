@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { formatSmtpError, sendInvoiceEmail, type InvoiceEmailAttachment } from "@/lib/send-notification";
 import { getSupabaseUserClient } from "@/lib/supabase-api-route";
+import { supplierInvoiceCategoryLabel } from "@/lib/supplier-invoice-categories";
 
 export const runtime = "nodejs";
 
@@ -82,7 +83,7 @@ export async function POST(request: Request, context: { params: Promise<{ caseId
           `Sprawa: ${client}${location}`,
           `Dostawca: ${supplier}`,
           `Numer faktury: ${number}`,
-          `Kategoria: ${invoice.category}`,
+          `Kategoria: ${supplierInvoiceCategoryLabel(invoice.category)}`,
           `Data faktury: ${invoice.invoice_date}`,
           `Termin płatności: ${invoice.due_date || "brak"}`,
           `Kwota brutto: ${money(gross)}`,

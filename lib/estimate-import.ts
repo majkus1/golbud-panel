@@ -215,6 +215,73 @@ export function normalizeEstimateTable(table: RawTable): EstimateParseResult {
   return { lines, headerDetected, skippedRows: skipped };
 }
 
+/** Polecenie dla modelu przy odczycie kosztorysu z PDF/zdjęcia (trasa /api/estimate-import). */
+export const AI_ESTIMATE_INSTRUCTION = [
+  "To jest kosztorys lub oferta firmy budowlanej (np. ocieplenie, elewacja, tynki).",
+  "Wypisz wszystkie pozycje kosztorysu jako JSON: tablica obiektów z polami",
+  "nazwa (pełny opis pozycji), jednostka (np. m2, mb, szt., kpl., m3, kg, t, rg), ilosc (liczba),",
+  "cena_netto (cena jednostkowa netto, liczba), wartosc_netto (wartość pozycji netto, liczba),",
+  "rodzaj („materiał”, „robocizna” albo „materiał i robocizna”, jeśli pozycja obejmuje oba).",
+  "Pomiń wiersze sum, podsumowań, VAT i nagłówki działów. Liczby zapisuj z kropką dziesiętną.",
+  "Zwróć wyłącznie JSON, bez komentarza."
+].join(" ");
+
+const AI_FIELDS: Record<"name" | "unit" | "quantity" | "rate" | "value" | "section", string[]> = {
+  name: ["nazwa", "opis", "pozycja", "name", "description"],
+  unit: ["jednostka", "jm", "j.m.", "unit"],
+  quantity: ["ilosc", "quantity", "qty"],
+  rate: ["cena_netto", "cena", "cena_jednostkowa", "unit_price", "unitrate", "price"],
+  value: ["wartosc_netto", "wartosc", "value", "total"],
+  section: ["rodzaj", "sekcja", "section", "typ", "type"]
+};
+
+const SUMMARY_ROW = /^(razem|suma|podsumowanie|ogolem|vat|wartosc (netto|brutto)|do zaplaty)\b/;
+
+function aiRows(data: unknown): Record<string, unknown>[] {
+  if (Array.isArray(data)) return data.filter((r): r is Record<string, unknown> => !!r && typeof r === "object");
+  if (data && typeof data === "object") {
+    const nested = Object.values(data as Record<string, unknown>).find(Array.isArray);
+    if (nested) return aiRows(nested);
+  }
+  return [];
+}
+
+function aiField(row: Record<string, unknown>, field: keyof typeof AI_FIELDS): RawCell {
+  const wanted = AI_FIELDS[field];
+  const key = Object.keys(row).find((k) => wanted.includes(deburr(k)));
+  const value = key ? row[key] : undefined;
+  return typeof value === "string" || typeof value === "number" || typeof value === "boolean" ? value : null;
+}
+
+/**
+ * Pozycje odczytane przez AI z PDF/zdjęcia kosztorysu → pozycje oferty. Sprawdzamy odpowiedź
+ * tak samo jak plik CSV (liczby, jednostki, rodzaj), bo model potrafi zwrócić tekst zamiast
+ * liczby albo dopisać wiersz sumy.
+ */
+export function normalizeAiEstimateRows(data: unknown): EstimateParseResult {
+  const lines: ImportedEstimateLine[] = [];
+  let skipped = 0;
+  for (const row of aiRows(data)) {
+    const name = String(aiField(row, "name") ?? "").trim();
+    if (!name || SUMMARY_ROW.test(deburr(name))) {
+      skipped += 1;
+      continue;
+    }
+    const quantity = parsePlNumber(aiField(row, "quantity"));
+    let unitRate = parsePlNumber(aiField(row, "rate"));
+    const value = parsePlNumber(aiField(row, "value"));
+    if (unitRate === 0 && value > 0 && quantity > 0) unitRate = Math.round((value / quantity) * 100) / 100;
+    lines.push({
+      section: guessSection(aiField(row, "section")) ?? "material",
+      name,
+      unit: normalizeUnit(aiField(row, "unit")),
+      quantity: quantity || 1,
+      unitRate
+    });
+  }
+  return { lines, headerDetected: true, skippedRows: skipped };
+}
+
 export function selectedEstimateLines(draft: EstimateImportDraft | null): ImportedEstimateLine[] {
   if (!draft) return [];
   return draft.lines.filter((_, i) => draft.include[i]);

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { buildSupplierInvoiceImportPreview, parseDelimitedInvoiceRows, type ImportSource, type RawInvoiceImportRow, type SupplierInvoiceImportPreviewRow } from "@/lib/supplier-invoice-import";
+import { extractJsonFromFile } from "@/lib/openai-file-extract";
 import { getSupabaseUserClient } from "@/lib/supabase-api-route";
 import type { CaseRow, SupplierInvoice, SupplierInvoiceCategoryRule } from "@/lib/types";
 
@@ -32,49 +33,18 @@ function rowsFromWorkbook(buffer: ArrayBuffer): RawInvoiceImportRow[] {
   return XLSX.utils.sheet_to_json<RawInvoiceImportRow>(sheet, { defval: "" });
 }
 
+const INVOICE_OCR_INSTRUCTION =
+  "Odczytaj faktury kosztowe z pliku. Zwróć wyłącznie JSON array obiektów z polami: dostawca, numer faktury, data faktury, termin płatności, sprawa, kategoria, netto, brutto, zapłacono, uwagi. Jeśli pole nie istnieje, zostaw pusty string.";
+
 async function rowsFromOcr(file: File): Promise<RawInvoiceImportRow[]> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error("OCR wymaga ustawienia OPENAI_API_KEY w środowisku.");
-  }
-
-  const bytes = Buffer.from(await file.arrayBuffer());
-  const dataUrl = `data:${file.type || "application/octet-stream"};base64,${bytes.toString("base64")}`;
-  const filePart =
-    file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
-      ? { type: "input_file", filename: file.name, file_data: dataUrl }
-      : { type: "input_image", image_url: dataUrl };
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_OCR_MODEL || "gpt-5.4-mini",
-      input: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text:
-                "Odczytaj faktury kosztowe z pliku. Zwróć wyłącznie JSON array obiektów z polami: dostawca, numer faktury, data faktury, termin płatności, sprawa, kategoria, netto, brutto, zapłacono, uwagi. Jeśli pole nie istnieje, zostaw pusty string."
-            },
-            filePart
-          ]
-        }
-      ]
-    })
+  const result = await extractJsonFromFile({
+    bytes: new Uint8Array(await file.arrayBuffer()),
+    fileName: file.name,
+    mimeType: file.type,
+    instruction: INVOICE_OCR_INSTRUCTION
   });
-
-  if (!response.ok) {
-    throw new Error(`OCR nie powiódł się (${response.status}).`);
-  }
-  const json = (await response.json()) as { output_text?: string; output?: Array<{ content?: Array<{ text?: string }> }> };
-  const text = json.output_text || json.output?.flatMap((item) => item.content || []).map((item) => item.text || "").join("\n") || "";
-  const parsed = JSON.parse(text.replace(/^```json\s*/i, "").replace(/```$/i, "").trim()) as RawInvoiceImportRow[];
-  return Array.isArray(parsed) ? parsed : [];
+  if (!result.ok) throw new Error(result.error);
+  return Array.isArray(result.data) ? (result.data as RawInvoiceImportRow[]) : [];
 }
 
 async function loadPreviewContext(supabase: NonNullable<Awaited<ReturnType<typeof getSupabaseUserClient>>>["supabase"], organizationId: string) {

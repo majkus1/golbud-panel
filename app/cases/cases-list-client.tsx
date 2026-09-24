@@ -337,50 +337,52 @@ export function CasesListClient() {
             const assigneeIds = assigneesMap[c.id] || [];
             const leadIds = leadsMap[c.id] || [];
             const overdue = isDue(c.next_contact_date) && !TERMINAL.has(c.status);
+            // Telefon jest obok linku do karty, nie w nim — zagnieżdżony <a> to błąd HTML
+            // (React zgłaszał błąd hydracji na telefonach).
             return (
-              <Link
+              <div
                 key={c.id}
-                href={`/cases/${c.id}`}
-                onMouseDown={rememberPress}
-                onClick={(event) => {
-                  if (!isPlainClick(event)) event.preventDefault();
-                }}
-                className={`block rounded-xl2 border p-4 transition active:scale-[0.99] ${
+                className={`rounded-xl2 border transition active:scale-[0.99] ${
                   overdue ? "border-amber-300 bg-amber-50/60" : "border-stone-200 bg-white hover:border-moss/40"
                 }`}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <p className="font-semibold text-ink">{c.client_name}</p>
-                  <StatusBadge status={c.status} />
-                </div>
-                {overdue && (
-                  <span className="mt-1.5 inline-flex rounded-full bg-red-100 px-2 py-0.5 text-[0.7rem] font-bold uppercase tracking-wide text-red-700">
-                    Zaległy kontakt
-                  </span>
-                )}
-                {c.location ? <p className="mt-1 text-sm text-steel">{c.location}</p> : null}
-                <div className="mt-2">
-                  <CaseLeadBadge userIds={leadIds} members={members} className="w-full sm:w-auto" />
-                </div>
-                <div className="mt-2">
-                  <ExpandableText text={c.work_description} lines={2} className="text-steel" emptyLabel="" />
-                </div>
-                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-steel">
-                  <span>Kontakt: <span className="font-semibold text-ink">{formatDate(c.next_contact_date)}</span></span>
-                  <span>Kwota: <span className="font-semibold text-ink">{formatMoney(c.estimated_value)}</span></span>
-                  {assigneeIds.length > 0 && <span>Osoby: {assigneeIds.length}</span>}
-                </div>
-                <CaseAuthorLine createdBy={c.created_by} createdAt={c.created_at} members={members} className="mt-2" />
+                <Link
+                  href={`/cases/${c.id}`}
+                  onMouseDown={rememberPress}
+                  onClick={(event) => {
+                    if (!isPlainClick(event)) event.preventDefault();
+                  }}
+                  className={`block p-4 ${c.phone ? "pb-2" : ""}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="font-semibold text-ink">{c.client_name}</p>
+                    <StatusBadge status={c.status} />
+                  </div>
+                  {overdue && (
+                    <span className="mt-1.5 inline-flex rounded-full bg-red-100 px-2 py-0.5 text-[0.7rem] font-bold uppercase tracking-wide text-red-700">
+                      Zaległy kontakt
+                    </span>
+                  )}
+                  {c.location ? <p className="mt-1 text-sm text-steel">{c.location}</p> : null}
+                  <div className="mt-2">
+                    <CaseLeadBadge userIds={leadIds} members={members} className="w-full sm:w-auto" />
+                  </div>
+                  <div className="mt-2">
+                    <ExpandableText text={c.work_description} lines={2} className="text-steel" emptyLabel="" />
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-steel">
+                    <span>Kontakt: <span className="font-semibold text-ink">{formatDate(c.next_contact_date)}</span></span>
+                    <span>Kwota: <span className="font-semibold text-ink">{formatMoney(c.estimated_value)}</span></span>
+                    {assigneeIds.length > 0 && <span>Osoby: {assigneeIds.length}</span>}
+                  </div>
+                  <CaseAuthorLine createdBy={c.created_by} createdAt={c.created_at} members={members} className="mt-2" />
+                </Link>
                 {c.phone ? (
-                  <a
-                    href={`tel:${c.phone.replace(/\s/g, "")}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="mt-3 inline-block text-sm font-semibold text-moss"
-                  >
+                  <a href={`tel:${c.phone.replace(/\s/g, "")}`} className="mb-4 ml-4 mt-1 inline-block text-sm font-semibold text-moss">
                     {c.phone}
                   </a>
                 ) : null}
-              </Link>
+              </div>
             );
           })}
         </div>

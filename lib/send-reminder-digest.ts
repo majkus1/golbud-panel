@@ -1,4 +1,5 @@
 import { getSmtpFrom, getSmtpTransporter } from "@/lib/smtp-transport";
+import { supplierInvoiceCategoryLabel } from "@/lib/supplier-invoice-categories";
 
 function escapeHtml(s: string): string {
   return s
@@ -329,7 +330,7 @@ export function buildReminderDigestHtml(params: DigestSendParams): string {
         return htmlRow(i.case_id ? `${b}/cases/${i.case_id}` : `${b}/reports/profitability`, [
           `<strong>${escapeHtml(i.supplier_name)}</strong>${i.invoice_number ? ` &mdash; ${escapeHtml(i.invoice_number)}` : ""}`,
           `Termin: ${escapeHtml(i.due_date)} &mdash; pozostało do zapłaty: ${escapeHtml(money(left))}`,
-          `${escapeHtml(i.category)}${i.client_name ? ` &mdash; ${escapeHtml(i.client_name)}` : ""}`
+          `${escapeHtml(supplierInvoiceCategoryLabel(i.category))}${i.client_name ? ` &mdash; ${escapeHtml(i.client_name)}` : ""}`
         ]);
       })
     ));
@@ -342,7 +343,7 @@ export function buildReminderDigestHtml(params: DigestSendParams): string {
         return htmlRow(i.case_id ? `${b}/cases/${i.case_id}` : `${b}/reports/profitability`, [
           `<strong>${escapeHtml(i.supplier_name)}</strong>${i.invoice_number ? ` &mdash; ${escapeHtml(i.invoice_number)}` : ""}`,
           `Termin: ${escapeHtml(i.due_date)} &mdash; do zapłaty: ${escapeHtml(money(left))}`,
-          `${escapeHtml(i.category)}${i.client_name ? ` &mdash; ${escapeHtml(i.client_name)}` : ""}`
+          `${escapeHtml(supplierInvoiceCategoryLabel(i.category))}${i.client_name ? ` &mdash; ${escapeHtml(i.client_name)}` : ""}`
         ]);
       })
     ));

@@ -2,6 +2,7 @@ import { dropTrashedCaseRows, loadTrashedCaseIds } from "@/lib/active-cases";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildFinancialControlReport } from "@/lib/financial-control-report";
 import { buildProfitabilitySummary, type ProfitabilitySummary } from "@/lib/profitability-report";
+import { supplierInvoiceCategoryLabel } from "@/lib/supplier-invoice-categories";
 import type {
   AiConversation,
   AiMessage,
@@ -322,7 +323,7 @@ export async function buildAssistantContext(
       (a) => `- ${a.file_name} (${a.category}), dodano ${dateLabel(a.created_at)}${a.description ? `, opis: ${trimText(a.description, 120)}` : ""}`
     );
     const supplierRows = ((supplierInvoices || []) as SupplierInvoice[]).map(
-      (i) => `- ${i.supplier_name}${i.invoice_number ? ` / ${i.invoice_number}` : ""}: ${money(i.gross_total)}, ${i.category}, status ${i.status}`
+      (i) => `- ${i.supplier_name}${i.invoice_number ? ` / ${i.invoice_number}` : ""}: ${money(i.gross_total)}, ${supplierInvoiceCategoryLabel(i.category)}, status ${i.status}`
     );
     const directCostRows = ((directCosts || []) as CaseDirectCost[]).map((d) => `- ${d.title}: ${money(d.amount)}, ${d.cost_type}`);
     const noteRows = ((notes || []) as { content?: string; created_at?: string }[]).map((n) => `- ${dateLabel(n.created_at)}: ${trimText(n.content, 180)}`);

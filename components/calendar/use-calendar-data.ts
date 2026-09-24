@@ -5,6 +5,7 @@ import { canSeeFinances } from "@/components/org-context";
 import { dropTrashedCaseRows, loadTrashedCaseIds } from "@/lib/active-cases";
 import { buildGrid, isoOf, type MonthCursor } from "@/lib/calendar";
 import { supabase } from "@/lib/supabase";
+import { supplierInvoiceCategoryLabel } from "@/lib/supplier-invoice-categories";
 import type {
   CaseRow,
   CaseScheduleItem,
@@ -107,7 +108,7 @@ export function useCalendarData(organizationId: string | null, role: MemberRole 
     // RPC nie filtruje po dacie (zbiór jest już mały — własne/brygadowe terminy),
     // więc zakres miesiąca stosujemy tutaj, tak jak dla terminów z profilu poniżej.
     const loadedDocuments = ((documentRes.data || []) as EmployeeDocument[]).filter((document) => inRange(document.valid_until));
-    const loadedEmployees = (employeeRes.data || []) as Pick<EmployeeProfile, "id" | "full_name" | "bhp_valid_until" | "medical_valid_until">[];
+    const loadedEmployees = (employeeRes.data || []) as Pick<EmployeeProfile, "id" | "full_name" | "bhp_valid_until" | "medical_valid_until" | "employment_end_date">[];
     const employeeMap: Record<string, string> = {};
     for (const employee of loadedEmployees) employeeMap[employee.id] = employee.full_name;
     setEmployeeLabels(employeeMap);
@@ -120,6 +121,8 @@ export function useCalendarData(organizationId: string | null, role: MemberRole 
       };
       addProfileItem("bhp", employee.bhp_valid_until, "Szkolenie BHP");
       addProfileItem("medical", employee.medical_valid_until, "Badania lekarskie");
+      // Koniec umowy — RPC oddaje go tylko zarządowi i samemu pracownikowi.
+      addProfileItem("contract", employee.employment_end_date ?? null, "Koniec umowy");
     }
     setHrItems([
       ...loadedDocuments.map((document) => ({
@@ -165,7 +168,7 @@ export function useCalendarData(organizationId: string | null, role: MemberRole 
     for (const invoice of active<SupplierInvoice>(supplierRes.data)) {
       const left = Number(invoice.gross_total || 0) - Number(invoice.paid_amount || 0);
       if (!invoice.due_date || left <= 0) continue;
-      business.push({ id: `${invoice.id}-supplier`, date: invoice.due_date, title: `Faktura kosztowa: ${invoice.supplier_name}`, subtitle: `${invoice.category}${invoice.invoice_number ? ` · ${invoice.invoice_number}` : ""}`, href: "/reports/profitability", tone: invoice.due_date < todayIso ? "red" : "amber", kind: "supplier_due" });
+      business.push({ id: `${invoice.id}-supplier`, date: invoice.due_date, title: `Faktura kosztowa: ${invoice.supplier_name}`, subtitle: `${supplierInvoiceCategoryLabel(invoice.category)}${invoice.invoice_number ? ` · ${invoice.invoice_number}` : ""}`, href: "/reports/profitability", tone: invoice.due_date < todayIso ? "red" : "amber", kind: "supplier_due" });
     }
     for (const subcontractor of active<CaseSubcontractor>(subcontractorRes.data)) {
       const dates = [

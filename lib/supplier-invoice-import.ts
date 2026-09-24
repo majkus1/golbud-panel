@@ -1,3 +1,4 @@
+import { SUPPLIER_INVOICE_CATEGORIES } from "@/lib/supplier-invoice-categories";
 import type { CaseRow, SupplierInvoice, SupplierInvoiceCategory, SupplierInvoiceCategoryRule, SupplierInvoiceStatus } from "@/lib/types";
 import { warsawTodayIso } from "@/lib/warsaw-today";
 
@@ -26,7 +27,9 @@ export type SupplierInvoiceImportPreviewRow = {
   raw: RawInvoiceImportRow;
 };
 
+// Kolejność ma znaczenie: „materiał i robocizna” sprawdzamy przed samymi materiałami.
 const CATEGORY_KEYWORDS: Record<SupplierInvoiceCategory, string[]> = {
+  materialy_robocizna: ["material i robocizna", "materialy i robocizna", "material z robocizna", "materialem i robocizna", "material + robocizna", "materialy + robocizna"],
   materialy: ["hurtownia", "material", "materiał", "styropian", "klej", "siatka", "welna", "wełna", "farba", "grunt", "tynk", "listwa", "kolki", "kołki", "castorama", "leroy", "psb"],
   robocizna: ["robocizna", "usluga", "usługa", "montaz", "montaż", "wykonanie", "prace", "godziny"],
   sprzet: ["sprzet", "sprzęt", "rusztowanie", "wynajem", "narzedzia", "narzędzia", "maszyna", "agregat"],
@@ -92,8 +95,10 @@ function statusFromAmounts(gross: number, paid: number): SupplierInvoiceStatus {
 
 function categoryFromValue(value: string): SupplierInvoiceCategory | null {
   const normalized = normalizeText(value);
-  const allowed: SupplierInvoiceCategory[] = ["materialy", "robocizna", "sprzet", "transport", "podwykonawca", "inne"];
-  return allowed.find((category) => normalizeText(category) === normalized) || null;
+  // Kategoria w pliku może być identyfikatorem („materialy”) albo nazwą z programu („Materiały i robocizna”).
+  return (
+    SUPPLIER_INVOICE_CATEGORIES.find((c) => normalizeText(c.id) === normalized || normalizeText(c.label) === normalized)?.id || null
+  );
 }
 
 function suggestCategory(row: RawInvoiceImportRow, rules: SupplierInvoiceCategoryRule[]) {

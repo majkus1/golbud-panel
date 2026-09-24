@@ -10,6 +10,7 @@ import { showToast } from "@/components/toast";
 import { summarizeCompliance, type ComplianceDocument } from "@/lib/employee-compliance";
 import { currency, formatDate } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
+import { employmentPeriodLabel } from "@/lib/hr";
 import { warsawTodayIso } from "@/lib/warsaw-today";
 import type { Crew, EmployeeCompensation, EmployeeDepartment, EmployeeEmploymentType, EmployeePayrollProfile, JobPosition, OrgMemberProfile } from "@/lib/types";
 
@@ -54,6 +55,8 @@ type FormState = {
   email: string;
   bhp_valid_until: string;
   medical_valid_until: string;
+  employment_start_date: string;
+  employment_end_date: string;
   notes: string;
 };
 
@@ -74,6 +77,8 @@ const emptyForm: FormState = {
   email: "",
   bhp_valid_until: "",
   medical_valid_until: "",
+  employment_start_date: "",
+  employment_end_date: "",
   notes: ""
 };
 
@@ -196,6 +201,8 @@ function OrganizationInner() {
       email: employee.email ?? "",
       bhp_valid_until: employee.bhp_valid_until ?? "",
       medical_valid_until: employee.medical_valid_until ?? "",
+      employment_start_date: employee.employment_start_date ?? "",
+      employment_end_date: employee.employment_end_date ?? "",
       notes: employee.notes ?? ""
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -204,6 +211,10 @@ function OrganizationInner() {
   const save = async () => {
     if (!organizationId || !form.full_name.trim()) {
       showToast("Podaj imię i nazwisko.", "error");
+      return;
+    }
+    if (form.employment_start_date && form.employment_end_date && form.employment_end_date < form.employment_start_date) {
+      showToast("Data końca zatrudnienia nie może być wcześniejsza niż początek.", "error");
       return;
     }
     setSaving(true);
@@ -221,6 +232,8 @@ function OrganizationInner() {
       email: form.email.trim() || null,
       bhp_valid_until: form.bhp_valid_until || null,
       medical_valid_until: form.medical_valid_until || null,
+      employment_start_date: form.employment_start_date || null,
+      employment_end_date: form.employment_end_date || null,
       notes: form.notes.trim() || null,
       created_by: userId
     };
@@ -445,6 +458,19 @@ function OrganizationInner() {
               </label>
             </div>
 
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+              <label className="grid gap-1 text-xs font-semibold text-ink">
+                Zatrudniony od
+                <DateInput className="font-normal" value={form.employment_start_date} onChange={(e) => setForm((f) => ({ ...f, employment_start_date: e.target.value }))} />
+              </label>
+              <label className="grid gap-1 text-xs font-semibold text-ink">
+                <span>
+                  Zatrudniony do <span className="font-normal text-steel">(puste = bezterminowo)</span>
+                </span>
+                <DateInput className="font-normal" value={form.employment_end_date} onChange={(e) => setForm((f) => ({ ...f, employment_end_date: e.target.value }))} />
+              </label>
+            </div>
+
             <label className="grid gap-1 text-xs font-semibold text-ink">
               Opis / uwagi
               <textarea className="input min-h-[80px] font-normal" value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
@@ -608,6 +634,11 @@ function EmployeeListCard({
       <div className="mt-3 grid min-w-0 gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
         <Badge label="BHP" value={employee.bhp_valid_until ? formatDate(employee.bhp_valid_until) : "brak"} tone={dateTone(employee.bhp_valid_until)} />
         <Badge label="Medycyna" value={employee.medical_valid_until ? formatDate(employee.medical_valid_until) : "brak"} tone={dateTone(employee.medical_valid_until)} />
+        <Badge
+          label="Zatrudnienie"
+          value={employmentPeriodLabel(employee.employment_start_date, employee.employment_end_date)}
+          tone={employee.employment_end_date ? dateTone(employee.employment_end_date) : "bg-stone-100 text-steel"}
+        />
         <Badge label="Telefon" value={employee.phone || "—"} tone="bg-stone-100 text-steel" />
         {showPayroll ? <Badge
           label="Stawka"

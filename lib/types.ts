@@ -453,6 +453,9 @@ export type EmployeeProfile = {
   email: string | null;
   bhp_valid_until: string | null;
   medical_valid_until: string | null;
+  /** Okres zatrudnienia (od–do); koniec umowy trafia do kalendarza jako termin kadrowy. */
+  employment_start_date?: string | null;
+  employment_end_date?: string | null;
   notes: string | null;
   active: boolean;
   created_by: string | null;
@@ -637,7 +640,7 @@ export type EmployeeSettlementHistory = {
   created_at: string;
 };
 
-export type SupplierInvoiceCategory = "materialy" | "robocizna" | "sprzet" | "transport" | "podwykonawca" | "inne";
+export type SupplierInvoiceCategory = "materialy" | "robocizna" | "materialy_robocizna" | "sprzet" | "transport" | "podwykonawca" | "inne";
 export type SupplierInvoiceStatus = "nieoplacona" | "czesciowo" | "oplacona";
 
 export type SupplierInvoice = {
@@ -651,6 +654,9 @@ export type SupplierInvoice = {
   category: SupplierInvoiceCategory;
   net_total: number | null;
   gross_total: number;
+  /** Tylko przy kategorii „materiały i robocizna”: ile z brutto to materiały, a ile robocizna. */
+  material_gross?: number | null;
+  labor_gross?: number | null;
   paid_amount: number;
   paid_at?: string | null;
   status: SupplierInvoiceStatus;

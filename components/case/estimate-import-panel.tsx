@@ -1,8 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
+import { DropZone } from "@/components/drop-zone";
+import { useOrg } from "@/components/org-context";
 import { showToast } from "@/components/toast";
 import { Button } from "@/components/ui";
+import { postAuthenticatedForm } from "@/lib/authed-fetch";
 import type { EstimateImportDraft, ImportedEstimateLine } from "@/lib/types";
 import { parseEstimateFile } from "@/lib/estimate-import";
 import { OFFER_SECTIONS, OFFER_SECTION_SHORT, type OfferSection } from "@/lib/offer-sections";
@@ -96,12 +99,21 @@ export function EstimatePreviewTable({
   );
 }
 
+type ParsedEstimate = { lines: ImportedEstimateLine[]; headerInfo: string; sourceLabel: string };
+
+/** PDF i zdjęcia czyta AI na serwerze; CSV i Excel — przeglądarka, bez AI. */
+function needsAi(file: File): boolean {
+  return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf") || file.type.startsWith("image/");
+}
+
+const ACCEPTED_FILES = ".csv,.txt,.xlsx,.xls,.pdf,image/jpeg,image/png,image/webp,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
 export function EstimateImportPanel(props: Props) {
   const { defaultOpen = false, embedded = false } = props;
+  const { organizationId } = useOrg();
   const [open, setOpen] = useState(defaultOpen || embedded);
-  const [parsing, setParsing] = useState(false);
+  const [parsing, setParsing] = useState<null | "file" | "ai">(null);
   const [importing, setImporting] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const isDraft = props.mode === "draft";
   const rows = isDraft ? props.draft?.lines ?? [] : [];
@@ -119,10 +131,21 @@ export function EstimateImportPanel(props: Props) {
     setOpen(true);
   };
 
+  const readWithAi = async (file: File): Promise<ParsedEstimate> => {
+    if (!organizationId) throw new Error("Brak firmy — odśwież stronę");
+    const form = new FormData();
+    form.append("organizationId", organizationId);
+    form.append("file", file);
+    const res = await postAuthenticatedForm<ParsedEstimate>("/api/estimate-import", form);
+    if (!res.ok) throw new Error(res.error);
+    return res.data;
+  };
+
   const handleFile = async (file: File) => {
-    setParsing(true);
+    const ai = needsAi(file);
+    setParsing(ai ? "ai" : "file");
     try {
-      const parsed = await parseEstimateFile(file);
+      const parsed = ai ? await readWithAi(file) : await parseEstimateFile(file);
       if (props.mode === "draft") {
         props.onDraftChange({
           sourceLabel: parsed.sourceLabel,
@@ -136,8 +159,7 @@ export function EstimateImportPanel(props: Props) {
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Nie udało się odczytać pliku", "error");
     } finally {
-      setParsing(false);
-      if (fileRef.current) fileRef.current.value = "";
+      setParsing(null);
     }
   };
 
@@ -213,7 +235,7 @@ export function EstimateImportPanel(props: Props) {
         className="border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100"
         onClick={() => setOpen(true)}
       >
-        Importuj kosztorys (CSV / XLSX)
+        Importuj kosztorys (PDF / Excel / CSV)
       </Button>
     );
   }
@@ -226,7 +248,8 @@ export function EstimateImportPanel(props: Props) {
         <div>
           <h4 className="text-sm font-bold text-ink">Import kosztorysu zewnętrznego</h4>
           <p className="text-xs text-steel">
-            Wgraj plik od kosztorysanta (CSV/XLSX). Kolumny: nazwa, jednostka, ilość, cena, wartość.
+            Kosztorys od kosztorysanta: Excel lub CSV (kolumny: nazwa, jednostka, ilość, cena, wartość), a także PDF albo zdjęcie —
+            te odczytuje AI, więc przed importem sprawdź ilości i ceny.
             {isDraft && " Po utworzeniu zlecenia pozycje trafią do wyceny — tam możesz je edytować."}
           </p>
         </div>
@@ -237,18 +260,16 @@ export function EstimateImportPanel(props: Props) {
         )}
       </div>
 
-      <input
-        ref={fileRef}
-        type="file"
-        accept=".csv,.txt,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) void handleFile(f);
-        }}
-        className="block w-full text-sm text-steel file:mr-3 file:rounded-md file:border-0 file:bg-ink file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-moss"
+      <DropZone
+        onFile={handleFile}
+        accept={ACCEPTED_FILES}
+        busy={parsing !== null}
+        label="Przeciągnij kosztorys tutaj albo kliknij, żeby wybrać"
+        hint="PDF, zdjęcie, Excel (XLSX/XLS) lub CSV"
       />
 
-      {parsing && <p className="text-sm text-steel">Analiza pliku…</p>}
+      {parsing === "file" && <p className="text-sm text-steel">Analiza pliku…</p>}
+      {parsing === "ai" && <p className="text-sm text-steel">Odczytuję kosztorys z pliku — to może potrwać do minuty…</p>}
       {displayHeader && <p className="text-xs font-medium text-moss">{displayHeader}</p>}
 
       {displayRows.length > 0 && (

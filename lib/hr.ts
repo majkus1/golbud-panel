@@ -37,6 +37,22 @@ export function documentExpiryTone(document: Pick<EmployeeDocument, "valid_until
   return "bg-emerald-50 text-emerald-700";
 }
 
+/** Czy osoba jest zatrudniona w danym dniu (brak daty = bez ograniczenia z tej strony). */
+export function isEmployedOn(profile: { employment_start_date?: string | null; employment_end_date?: string | null }, dayIso: string): boolean {
+  if (profile.employment_start_date && dayIso < profile.employment_start_date) return false;
+  if (profile.employment_end_date && dayIso > profile.employment_end_date) return false;
+  return true;
+}
+
+/** „od 01.03.2026 do 31.12.2026”, „od 01.03.2026 (bezterminowo)”, „do 31.12.2026” albo „nie podano”. */
+export function employmentPeriodLabel(start: string | null | undefined, end: string | null | undefined): string {
+  const pl = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
+  if (start && end) return `od ${pl(start)} do ${pl(end)}`;
+  if (start) return `od ${pl(start)} (bezterminowo)`;
+  if (end) return `do ${pl(end)}`;
+  return "nie podano";
+}
+
 export function safeStorageFilename(name: string): string {
   return name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-").slice(0, 100) || "dokument";
 }

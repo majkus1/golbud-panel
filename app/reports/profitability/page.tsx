@@ -19,6 +19,7 @@ import { buildProfitabilitySummary, type CaseProfitabilityRow, type Profitabilit
 import type { ImportSource, SupplierInvoiceImportPreviewRow } from "@/lib/supplier-invoice-import";
 import { currency, formatDate } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
+import { SUPPLIER_INVOICE_CATEGORIES, supplierInvoiceCategoryLabel, validateCostSplit } from "@/lib/supplier-invoice-categories";
 import { warsawTodayIso } from "@/lib/warsaw-today";
 import type {
   CaseDirectCost,
@@ -37,14 +38,7 @@ import type {
   SupplierInvoiceStatus,
 } from "@/lib/types";
 
-const INVOICE_CATEGORIES: { id: SupplierInvoiceCategory; label: string }[] = [
-  { id: "materialy", label: "Materiały" },
-  { id: "robocizna", label: "Robocizna / usługi" },
-  { id: "sprzet", label: "Sprzęt" },
-  { id: "transport", label: "Transport" },
-  { id: "podwykonawca", label: "Podwykonawca" },
-  { id: "inne", label: "Inne" }
-];
+const INVOICE_CATEGORIES = SUPPLIER_INVOICE_CATEGORIES;
 
 const SUB_ENTRY_TYPES: { id: SubcontractorSettlementEntryType; label: string }[] = [
   { id: "zaliczka", label: "Zaliczka" },
@@ -142,6 +136,8 @@ function ProfitabilityInner({ userId }: { userId: string }) {
     category: "materialy" as SupplierInvoiceCategory,
     net_total: "",
     gross_total: "",
+    material_gross: "",
+    labor_gross: "",
     paid_amount: "",
     notes: "",
     subcontractor_id: "",
@@ -261,6 +257,20 @@ function ProfitabilityInner({ userId }: { userId: string }) {
     }
     const gross = parseAmount(invoiceForm.gross_total);
     const paid = parseAmount(invoiceForm.paid_amount);
+    // Faktura „materiały i robocizna”: podział brutto na oba koszty (do rentowności).
+    let split: { material_gross: number | null; labor_gross: number | null } = { material_gross: null, labor_gross: null };
+    if (invoiceForm.category === "materialy_robocizna") {
+      const result = validateCostSplit(
+        gross,
+        invoiceForm.material_gross.trim() ? parseAmount(invoiceForm.material_gross) : null,
+        invoiceForm.labor_gross.trim() ? parseAmount(invoiceForm.labor_gross) : null
+      );
+      if (!result.ok) {
+        showToast(result.error, "error");
+        return;
+      }
+      split = { material_gross: result.material, labor_gross: result.labor };
+    }
     const { error } = await supabase.from("supplier_invoices").insert({
       organization_id: organizationId,
       case_id: invoiceForm.case_id || null,
@@ -271,6 +281,7 @@ function ProfitabilityInner({ userId }: { userId: string }) {
       category: invoiceForm.category,
       net_total: invoiceForm.net_total.trim() ? parseAmount(invoiceForm.net_total) : null,
       gross_total: gross,
+      ...split,
       paid_amount: paid,
       status: statusFromAmounts(gross, paid),
       notes: invoiceForm.notes.trim() || null,
@@ -292,7 +303,7 @@ function ProfitabilityInner({ userId }: { userId: string }) {
         href: invoiceForm.case_id ? `/cases/${invoiceForm.case_id}` : "/reports/profitability"
       });
     }
-    setInvoiceForm((f) => ({ ...f, supplier_name: "", invoice_number: "", net_total: "", gross_total: "", paid_amount: "", notes: "", subcontractor_id: "", linked_settlement_entry_id: "" }));
+    setInvoiceForm((f) => ({ ...f, supplier_name: "", invoice_number: "", net_total: "", gross_total: "", material_gross: "", labor_gross: "", paid_amount: "", notes: "", subcontractor_id: "", linked_settlement_entry_id: "" }));
     await load();
   };
 
@@ -543,7 +554,7 @@ function ProfitabilityInner({ userId }: { userId: string }) {
           i.supplier_name,
           i.invoice_number || "",
           i.invoice_date,
-          i.category,
+          supplierInvoiceCategoryLabel(i.category),
           Number(i.gross_total || 0),
           Number(i.paid_amount || 0),
           i.status,
@@ -748,6 +759,19 @@ function ProfitabilityInner({ userId }: { userId: string }) {
               <input className="input text-sm" placeholder="Brutto" inputMode="decimal" value={invoiceForm.gross_total} onChange={(e) => setInvoiceForm((f) => ({ ...f, gross_total: e.target.value }))} />
               <input className="input text-sm" placeholder="Zapłacono" inputMode="decimal" value={invoiceForm.paid_amount} onChange={(e) => setInvoiceForm((f) => ({ ...f, paid_amount: e.target.value }))} />
             </div>
+            {invoiceForm.category === "materialy_robocizna" && (
+              <div className="grid gap-2 rounded-lg bg-stone-50 p-2.5 sm:grid-cols-2">
+                <label className="grid gap-1 text-xs font-semibold text-ink">
+                  W tym materiały (brutto)
+                  <input className="input text-sm" inputMode="decimal" value={invoiceForm.material_gross} onChange={(e) => setInvoiceForm((f) => ({ ...f, material_gross: e.target.value }))} />
+                </label>
+                <label className="grid gap-1 text-xs font-semibold text-ink">
+                  W tym robocizna (brutto)
+                  <input className="input text-sm" inputMode="decimal" value={invoiceForm.labor_gross} onChange={(e) => setInvoiceForm((f) => ({ ...f, labor_gross: e.target.value }))} />
+                </label>
+                <p className="text-[0.7rem] leading-4 text-steel sm:col-span-2">Wystarczy jedna kwota — druga to reszta do brutto. W rentowności faktura rozdzieli się na materiały i robociznę.</p>
+              </div>
+            )}
             <textarea className="input min-h-[64px] text-sm" placeholder="Uwagi" value={invoiceForm.notes} onChange={(e) => setInvoiceForm((f) => ({ ...f, notes: e.target.value }))} />
             <button type="button" onClick={() => void saveInvoice()} className="rounded-lg bg-ink px-4 py-2.5 text-sm font-semibold text-white hover:bg-moss">Dodaj fakturę</button>
           </Panel>

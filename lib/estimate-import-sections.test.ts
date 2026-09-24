@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { guessSection, normalizeUnit } from "./estimate-import";
+import { guessSection, normalizeAiEstimateRows, normalizeUnit } from "./estimate-import";
 
 describe("guessSection — rodzaj pozycji z pliku kosztorysu", () => {
   it("rozpoznaje pozycje z materiałem i robocizną, zanim zadziała samo słowo „robocizna”", () => {
@@ -32,5 +32,28 @@ describe("normalizeUnit — nowe jednostki", () => {
     expect(normalizeUnit("m")).toBe("mb");
     expect(normalizeUnit("r-g")).toBe("roboczogodz.");
     expect(normalizeUnit("")).toBe("szt.");
+  });
+});
+
+describe("normalizeAiEstimateRows — pozycje odczytane przez AI z PDF", () => {
+  it("zamienia odpowiedź modelu na pozycje oferty i pomija wiersze sum", () => {
+    const result = normalizeAiEstimateRows({
+      pozycje: [
+        { nazwa: "Docieplenie ścian styropianem 15 cm", jednostka: "m2", ilosc: "245,5", cena_netto: "189,00", rodzaj: "materiał i robocizna" },
+        { Nazwa: "Rusztowanie", jednostka: "m²", ilość: 300, cena_netto: 0, wartosc_netto: "4 500,00", rodzaj: "robocizna" },
+        { nazwa: "Razem netto", wartosc_netto: 50899.5 },
+        { nazwa: "", ilosc: 1 }
+      ]
+    });
+    expect(result.lines).toEqual([
+      { section: "mixed", name: "Docieplenie ścian styropianem 15 cm", unit: "m²", quantity: 245.5, unitRate: 189 },
+      { section: "labor", name: "Rusztowanie", unit: "m²", quantity: 300, unitRate: 15 }
+    ]);
+    expect(result.skippedRows).toBe(2);
+  });
+
+  it("nie wywraca się na odpowiedzi, która nie jest listą", () => {
+    expect(normalizeAiEstimateRows("brak").lines).toEqual([]);
+    expect(normalizeAiEstimateRows(null).lines).toEqual([]);
   });
 });

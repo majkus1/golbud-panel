@@ -8,6 +8,7 @@ import { postAuthenticatedJson } from "@/lib/authed-fetch";
 import { amountToInput, currency, formatDate, parseAmount } from "@/lib/format";
 import { notify } from "@/lib/notify-client";
 import { supabase } from "@/lib/supabase";
+import { SUPPLIER_INVOICE_CATEGORIES, invoiceCostParts, validateCostSplit } from "@/lib/supplier-invoice-categories";
 import { warsawTodayIso } from "@/lib/warsaw-today";
 import type {
   Attachment,
@@ -18,14 +19,7 @@ import type {
   SupplierInvoiceStatus
 } from "@/lib/types";
 
-const INVOICE_CATEGORIES: { id: SupplierInvoiceCategory; label: string }[] = [
-  { id: "materialy", label: "Materiały" },
-  { id: "robocizna", label: "Robocizna / usługi" },
-  { id: "sprzet", label: "Sprzęt" },
-  { id: "transport", label: "Transport" },
-  { id: "podwykonawca", label: "Podwykonawca" },
-  { id: "inne", label: "Inne" }
-];
+const INVOICE_CATEGORIES = SUPPLIER_INVOICE_CATEGORIES;
 
 const DIRECT_COST_TYPES: { id: CaseDirectCostType; label: string }[] = [
   { id: "materialy", label: "Materiały" },
@@ -47,6 +41,18 @@ function statusFromAmounts(gross: number, paid: number): SupplierInvoiceStatus {
 
 function shouldAlertAmount(amount: number): boolean {
   return amount >= 2000;
+}
+
+/** Pola podziału do zapisu: przy „materiały i robocizna” sprawdzone kwoty, przy innych kategoriach puste. */
+function splitFromForm(
+  category: SupplierInvoiceCategory,
+  gross: number,
+  materialRaw: string,
+  laborRaw: string
+): { ok: true; material_gross: number | null; labor_gross: number | null } | { ok: false; error: string } {
+  if (category !== "materialy_robocizna") return { ok: true, material_gross: null, labor_gross: null };
+  const result = validateCostSplit(gross, materialRaw.trim() ? parseAmount(materialRaw) : null, laborRaw.trim() ? parseAmount(laborRaw) : null);
+  return result.ok ? { ok: true, material_gross: result.material, labor_gross: result.labor } : result;
 }
 
 function categoryLabel(value: string): string {
@@ -86,6 +92,8 @@ export function CaseCostsSection({
     category: "materialy" as SupplierInvoiceCategory,
     net_total: "",
     gross_total: "",
+    material_gross: "",
+    labor_gross: "",
     paid_amount: "",
     notes: ""
   });
@@ -178,6 +186,12 @@ export function CaseCostsSection({
       showToast("Podaj kwotę brutto.", "error");
       return;
     }
+    // Faktura „materiały i robocizna”: podział brutto na oba koszty (do rentowności).
+    const split = splitFromForm(invoiceForm.category, gross, invoiceForm.material_gross, invoiceForm.labor_gross);
+    if (!split.ok) {
+      showToast(split.error, "error");
+      return;
+    }
     setSaving(true);
     const attachmentId = await uploadAttachment();
     if (invoiceFile && !attachmentId) {
@@ -193,6 +207,8 @@ export function CaseCostsSection({
       category: invoiceForm.category,
       net_total: invoiceForm.net_total.trim() ? parseAmount(invoiceForm.net_total) : null,
       gross_total: gross,
+      material_gross: split.material_gross,
+      labor_gross: split.labor_gross,
       paid_amount: paid,
       status: statusFromAmounts(gross, paid),
       notes: invoiceForm.notes.trim() || null
@@ -228,6 +244,8 @@ export function CaseCostsSection({
       category: invoiceForm.category,
       net_total: invoiceForm.net_total.trim() ? parseAmount(invoiceForm.net_total) : null,
       gross_total: gross,
+      material_gross: split.material_gross,
+      labor_gross: split.labor_gross,
       paid_amount: paid,
       status: statusFromAmounts(gross, paid),
       notes: invoiceForm.notes.trim() || null,
@@ -250,7 +268,7 @@ export function CaseCostsSection({
         entityId: caseId
       });
     }
-    setInvoiceForm((f) => ({ ...f, supplier_name: "", invoice_number: "", net_total: "", gross_total: "", paid_amount: "", notes: "" }));
+    setInvoiceForm((f) => ({ ...f, supplier_name: "", invoice_number: "", net_total: "", gross_total: "", material_gross: "", labor_gross: "", paid_amount: "", notes: "" }));
     setInvoiceFile(null);
     await load();
     await onChange?.();
@@ -320,6 +338,8 @@ export function CaseCostsSection({
     category: "materialy" as SupplierInvoiceCategory,
     net_total: "",
     gross_total: "",
+    material_gross: "",
+    labor_gross: "",
     paid_amount: "",
     notes: ""
   });
@@ -335,6 +355,8 @@ export function CaseCostsSection({
       category: invoice.category as SupplierInvoiceCategory,
       net_total: invoice.net_total != null ? amountToInput(Number(invoice.net_total)) : "",
       gross_total: amountToInput(Number(invoice.gross_total || 0)),
+      material_gross: invoice.material_gross != null ? amountToInput(Number(invoice.material_gross)) : "",
+      labor_gross: invoice.labor_gross != null ? amountToInput(Number(invoice.labor_gross)) : "",
       paid_amount: amountToInput(Number(invoice.paid_amount || 0)),
       notes: invoice.notes || ""
     });
@@ -471,6 +493,19 @@ export function CaseCostsSection({
               <input className="input text-sm" placeholder="Brutto" inputMode="decimal" value={invoiceForm.gross_total} onChange={(e) => setInvoiceForm((f) => ({ ...f, gross_total: e.target.value }))} />
               <input className="input text-sm" placeholder="Zapłacono" inputMode="decimal" value={invoiceForm.paid_amount} onChange={(e) => setInvoiceForm((f) => ({ ...f, paid_amount: e.target.value }))} />
             </div>
+            {invoiceForm.category === "materialy_robocizna" && (
+              <div className="grid gap-2 rounded-lg bg-stone-50 p-2.5 sm:grid-cols-2">
+                <label className="grid gap-1 text-xs font-semibold text-ink">
+                  W tym materiały (brutto)
+                  <input className="input text-sm" inputMode="decimal" value={invoiceForm.material_gross} onChange={(e) => setInvoiceForm((f) => ({ ...f, material_gross: e.target.value }))} />
+                </label>
+                <label className="grid gap-1 text-xs font-semibold text-ink">
+                  W tym robocizna (brutto)
+                  <input className="input text-sm" inputMode="decimal" value={invoiceForm.labor_gross} onChange={(e) => setInvoiceForm((f) => ({ ...f, labor_gross: e.target.value }))} />
+                </label>
+                <p className="text-[0.7rem] leading-4 text-steel sm:col-span-2">Wystarczy jedna kwota — druga to reszta do brutto. W rentowności faktura rozdzieli się na materiały i robociznę.</p>
+              </div>
+            )}
             <label className="grid gap-1 text-xs font-semibold text-ink">
               Skan/PDF faktury
               <input
@@ -565,7 +600,14 @@ export function CaseCostsSection({
                             <p className="text-xs text-steel">{i.invoice_number || "bez numeru"} · {formatDate(i.invoice_date)}</p>
                             {i.sent_at ? <p className="text-[0.68rem] font-semibold text-emerald-700">wysłano: {formatDate(i.sent_at.slice(0, 10))}</p> : null}
                           </td>
-                          <td className="py-2 pr-3">{categoryLabel(i.category)}</td>
+                          <td className="py-2 pr-3">
+                            {categoryLabel(i.category)}
+                            {i.category === "materialy_robocizna" ? (
+                              <p className="text-xs text-steel">
+                                mat. {currency.format(invoiceCostParts(i).material)} · rob. {currency.format(invoiceCostParts(i).labor)}
+                              </p>
+                            ) : null}
+                          </td>
                           <td className="py-2 pr-3 text-right font-semibold">{currency.format(Number(i.gross_total || 0))}</td>
                           <td className={`py-2 pr-3 text-right font-bold ${left > 0 ? "text-amber-700" : "text-emerald-700"}`}>{currency.format(left)}</td>
                           <td className="py-2 pr-3">{i.due_date ? formatDate(i.due_date) : "brak"}</td>

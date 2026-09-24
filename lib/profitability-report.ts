@@ -1,3 +1,4 @@
+import { invoiceCostParts } from "@/lib/supplier-invoice-categories";
 import type {
   CaseDirectCost,
   CaseProfitabilityPlan,
@@ -474,10 +475,11 @@ export function buildProfitabilitySummary(input: ProfitabilityInput): Profitabil
       : sum(payments.filter((payment) => !!payment.due_date && payment.due_date < today), (payment) => Math.max(0, n(payment.amount_due) - n(payment.amount_paid)));
 
     const invoices = invoicesByCase.get(c.id) || [];
-    const materialCost = categoryCost(invoices, "materialy");
+    // Faktura „materiały i robocizna” dzieli się na oba koszty według zapisanego podziału.
+    const materialCost = sum(invoices, (invoice) => invoiceCostParts(invoice).material);
     const equipmentCost = categoryCost(invoices, "sprzet");
     const transportCost = categoryCost(invoices, "transport");
-    const invoiceLabor = categoryCost(invoices, "robocizna");
+    const invoiceLabor = sum(invoices, (invoice) => invoiceCostParts(invoice).labor);
     const invoiceOther = categoryCost(invoices, "inne");
     const invoiceSubcontractor = categoryCost(invoices, "podwykonawca");
     const costPaid = sum(invoices, (i) => n(i.paid_amount));

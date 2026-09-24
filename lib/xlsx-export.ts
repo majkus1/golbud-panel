@@ -41,6 +41,26 @@ const COLOR = {
 
 const CURRENCY_FMT = '#,##0.00 "zł"';
 const NUMBER_FMT = "#,##0";
+const DATE_FMT = "dd.mm.yyyy";
+
+/**
+ * Wartość kolumny typu „date” → prawdziwa data Excela (da się sortować i filtrować).
+ * Przyjmuje ISO (`rrrr-mm-dd`, także z godziną) i polski zapis `dd.mm.rrrr`;
+ * wszystko inne („Nie ustawiono”, „—”, pusto) daje puste pole zamiast tekstu.
+ * Data jest w UTC o północy, bo tak exceljs zapisuje daty bez przesunięcia strefy.
+ */
+export function toExcelDate(value: string | number | null | undefined): Date | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  let y: number, m: number, d: number;
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(trimmed);
+  const pl = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(trimmed);
+  if (iso) [y, m, d] = [Number(iso[1]), Number(iso[2]), Number(iso[3])];
+  else if (pl) [y, m, d] = [Number(pl[3]), Number(pl[2]), Number(pl[1])];
+  else return null;
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return date.getUTCMonth() === m - 1 && date.getUTCDate() === d ? date : null;
+}
 
 function alignFor(type: XlsxColumnType | undefined): "left" | "right" {
   return type === "number" || type === "currency" ? "right" : "left";
@@ -49,11 +69,13 @@ function alignFor(type: XlsxColumnType | undefined): "left" | "right" {
 function numberFormatFor(type: XlsxColumnType | undefined): string | undefined {
   if (type === "currency") return CURRENCY_FMT;
   if (type === "number") return NUMBER_FMT;
+  if (type === "date") return DATE_FMT;
   return undefined;
 }
 
 function estimateWidth(col: XlsxColumn, rows: (string | number | null | undefined)[][], index: number): number {
   if (col.width) return col.width;
+  if (col.type === "date") return Math.min(Math.max(Math.ceil(col.header.length * 1.15) + 2, 12), 60);
   let max = col.header.length;
   for (const row of rows) {
     const v = row[index];
@@ -137,7 +159,7 @@ export async function downloadXlsx(filename: string, sheets: XlsxSheet[]): Promi
       sheet.columns.forEach((col, i) => {
         const cell = excelRow.getCell(i + 1);
         const value = row[i];
-        cell.value = value === undefined ? null : value;
+        cell.value = col.type === "date" ? toExcelDate(value) : value === undefined ? null : value;
         const fmt = numberFormatFor(col.type);
         if (fmt) cell.numFmt = fmt;
         cell.alignment = { vertical: "middle", horizontal: alignFor(col.type) };

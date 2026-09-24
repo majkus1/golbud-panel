@@ -10,18 +10,19 @@ import { InfoTip } from "@/components/info-tip";
 import { showToast } from "@/components/toast";
 import { useOrg } from "@/components/org-context";
 import { downloadAuthenticatedPdf } from "@/lib/download-authenticated-pdf";
-import { currency, formatDate } from "@/lib/format";
+import { currency } from "@/lib/format";
 import {
   computeReportMetrics,
   defaultReportFrom,
   defaultReportTo
 } from "@/lib/reports-metrics";
+import { buildPaymentsExportRows } from "@/lib/payments-export";
 import { downloadXlsx } from "@/lib/xlsx-export";
 import { supabase } from "@/lib/supabase";
 import type { CaseRow, Payment } from "@/lib/types";
 
 const REPORT_HELP = {
-  period: "Filtr dotyczy spraw według daty wpłynięcia zapytania. Nie ogranicza podsumowania płatności pokazanego niżej.",
+  period: "Filtr dotyczy spraw według daty wpłynięcia zapytania. Nie ogranicza podsumowania płatności pokazanego niżej. Eksport płatności do Excela bierze ten sam okres, ale według terminu płatności.",
   inquiries: "Liczba spraw i zapytań utworzonych w wybranym okresie.",
   offered: "Sprawy, które doszły co najmniej do etapu wysłanej wyceny, decyzji klienta, umowy albo dalszej realizacji.",
   won: "Sprawy z terminem zarezerwowanym, w realizacji, odbiorze albo już rozliczone.",
@@ -114,7 +115,7 @@ function Reports() {
             return t >= fromTs && t <= toTs;
           })
           .map((c) => [
-            formatDate(c.created_at.slice(0, 10)),
+            c.created_at.slice(0, 10),
             c.client_name,
             c.phone || "",
             c.email || "",
@@ -123,45 +124,38 @@ function Reports() {
             c.source,
             c.status,
             c.estimated_value != null ? Number(c.estimated_value) : null,
-            formatDate(c.next_contact_date),
-            formatDate(c.realization_end_date)
+            c.next_contact_date,
+            c.realization_end_date
           ])
       }
     ]);
   };
 
+  // Płatności z wybranego okresu (według terminu, a bez terminu — dnia wpłaty), posortowane
+  // po terminie; daty jako prawdziwe daty Excela, puste pole zamiast „Nie ustawiono”.
   const exportPayments = () => {
-    const caseById = new Map(cases.map((c) => [c.id, c]));
+    const rows = buildPaymentsExportRows(payments, cases, from, to);
     void downloadXlsx(`golbud-platnosci-${from || "od-poczatku"}-${to || "do-dzis"}.xlsx`, [
       {
         name: "Płatności",
-        title: "Płatności",
-        subtitle: metrics.periodLabel,
+        title: "Płatności klienta",
+        subtitle: `${metrics.periodLabel} · według terminu płatności`,
         totalsLabel: "RAZEM",
         columns: [
-          { header: "Klient", type: "text" },
-          { header: "Tytuł", type: "text" },
           { header: "Termin", type: "date" },
+          { header: "Klient", type: "text" },
+          { header: "Miejscowość", type: "text" },
+          { header: "Etap obsługi", type: "text" },
+          { header: "Tytuł", type: "text" },
           { header: "Należność", type: "currency", total: true },
           { header: "Zapłacono", type: "currency", total: true },
           { header: "Saldo", type: "currency", total: true },
           { header: "Zapłacono dnia", type: "date" }
         ],
-        rows: payments.map((p) => {
-          const c = caseById.get(p.case_id);
-          const balance = Number(p.amount_due) - Number(p.amount_paid);
-          return [
-            c?.client_name || "",
-            p.title,
-            formatDate(p.due_date),
-            Number(p.amount_due),
-            Number(p.amount_paid),
-            balance,
-            p.paid_at ? formatDate(p.paid_at.slice(0, 10)) : ""
-          ];
-        })
+        rows: rows.map((r) => [r.dueDate, r.client, r.location, r.stage, r.title, r.amountDue, r.amountPaid, r.balance, r.paidAt])
       }
     ]);
+    if (rows.length === 0) showToast("W wybranym okresie nie ma płatności — plik jest pusty", "error");
   };
 
   const exportPdf = async () => {
