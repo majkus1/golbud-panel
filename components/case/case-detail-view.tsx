@@ -1078,6 +1078,10 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
           caseRow={caseRow}
           payments={payments}
           attachments={attachments}
+          variants={variants}
+          linesByVariant={linesByVariant}
+          selectedVariantId={selVariant}
+          extras={extras}
           onChange={load}
         />
       )}
@@ -1095,6 +1099,7 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
           variants={variants}
           linesByVariant={linesByVariant}
           selectedVariantId={selVariant}
+          extras={extras}
           fieldView={fieldView}
           showFinances={showFinances}
           focusSection={docSection}

@@ -1,4 +1,5 @@
-import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Page, StyleSheet, View } from "@react-pdf/renderer";
+import { Text, pdfImageSource } from "@/components/pdf/pdf-primitives";
 import type React from "react";
 import type { FinancialControlReport, FinancialControlReportRow, FinancialControlReportSection } from "@/lib/financial-control-report";
 import { formatFinancialMoney } from "@/lib/financial-control-report";
@@ -112,7 +113,7 @@ function Header({
       <View style={styles.topHeader} fixed>
         <View style={styles.topHeaderRow}>
           {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf/renderer Image nie obsluguje atrybutu alt. */}
-          {logoPath ? <Image src={logoPath} style={styles.logo} /> : <Text style={styles.brandWord}>GOLBUD</Text>}
+          {logoPath ? <Image src={pdfImageSource(logoPath)} style={styles.logo} /> : <Text style={styles.brandWord}>GOLBUD</Text>}
           <View style={styles.headerText}>
             <Text style={styles.headerTitle}>Rejestr należności i harmonogram budów</Text>
             <Text style={styles.headerSub}>Dokument roboczy - do kontroli płatności, odbiorów i wejść ekip</Text>

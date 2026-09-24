@@ -1,4 +1,5 @@
-import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Page, StyleSheet, View } from "@react-pdf/renderer";
+import { Text, pdfImageSource } from "@/components/pdf/pdf-primitives";
 import { amountInWordsPl } from "@/lib/amount-words-pl";
 import type { OfferSellerProfile } from "@/lib/offer-seller-profile";
 import type { PdfInvoiceLine, VatBucket } from "@/lib/invoice";
@@ -150,7 +151,7 @@ export function InvoicePdfDocument({
         <View style={styles.headerRow}>
           <View style={{ width: "44%" }}>
             {logoPath ? (
-              <Image src={logoPath} style={styles.logo} />
+              <Image src={pdfImageSource(logoPath)} style={styles.logo} />
             ) : (
               <Text style={{ fontSize: 16, fontWeight: "bold", color: C.brand }}>GolBud</Text>
             )}

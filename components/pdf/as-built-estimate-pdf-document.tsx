@@ -1,4 +1,5 @@
-import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Page, StyleSheet, View } from "@react-pdf/renderer";
+import { Text, pdfImageSource } from "@/components/pdf/pdf-primitives";
 import type { AsBuiltLineSnapshot } from "@/lib/types";
 import { pdfPlMoney, pdfPlUnitRate, AS_BUILT_ESTIMATE_TITLE } from "@/lib/as-built-estimate";
 import type { OfferSellerProfile } from "@/lib/offer-seller-profile";
@@ -152,12 +153,15 @@ export function AsBuiltEstimatePdfDocument({
   balanceDue,
   footerNote
 }: Props) {
+  // Nagłówek jak we wzorze „kosztorys powykonawczy” Dawida: dane spółki z KRS i obydwoma telefonami.
   const companyLines = [
     seller.legalName,
     [seller.addressLine, seller.postalCity].filter(Boolean).join(", "),
-    seller.nip ? `NIP ${seller.nip}` : "",
-    [seller.email, seller.phone ? `tel. ${seller.phone}` : ""].filter(Boolean).join(" | ")
+    [seller.krs ? `KRS ${seller.krs}` : "", seller.nip ? `NIP ${seller.nip}` : ""].filter(Boolean).join(" | "),
+    [seller.email, [seller.phone, seller.phoneSecondary].filter(Boolean).join(", ")].filter(Boolean).join(" | ")
   ].filter(Boolean);
+  // „05-850 Ożarów Mazowiecki” → „Ożarów Mazowiecki” (miejsce sporządzenia).
+  const place = seller.postalCity.replace(/^\d{2}-\d{3}\s*/, "").trim();
 
   const basisLabel = gross ? "pozycje netto, rozliczenie brutto" : "wartości netto";
   const subtitle = workDescription.trim()
@@ -170,7 +174,7 @@ export function AsBuiltEstimatePdfDocument({
         <View style={styles.topRow}>
           <View style={{ width: "34%" }}>
             {logoPath ? (
-              <Image src={logoPath} style={styles.logo} />
+              <Image src={pdfImageSource(logoPath)} style={styles.logo} />
             ) : (
               <Text style={styles.brandName}>GolBud</Text>
             )}
@@ -190,6 +194,7 @@ export function AsBuiltEstimatePdfDocument({
         <Text style={styles.docSubtitle}>{pdfText(subtitle)}</Text>
 
         <View style={styles.metaTable}>
+          <MetaPair leftLabel="Data sporządzenia" leftValue={issueDate} rightLabel="Miejsce sporządzenia" rightValue={place} />
           <MetaPair leftLabel="Inwestor" leftValue={investorName} rightLabel="Wykonawca" rightValue={seller.legalName} />
           <MetaPair leftLabel="Adres inwestycji" leftValue={investmentAddress || "—"} rightLabel="Umowa" rightValue={contractReference || "—"} />
           <MetaPair leftLabel="Podstawa rozliczenia" leftValue={settlementBasis} rightLabel="Rodzaj rozliczenia" rightValue={basisLabel} />

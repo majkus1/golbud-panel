@@ -29,3 +29,13 @@ export function pdfFixed(v: unknown, decimals: number): string {
 export function pdfHyphenation(word: string): string[] {
   return [word];
 }
+
+/**
+ * Liczba po polsku do PDF: „30 000,00” zamiast „30000.00”. Klienci GolBud dostają oferty
+ * z polskim zapisem kwot, tak jak w ich wzorach dokumentów.
+ */
+export function pdfPlNumber(v: unknown, decimals: number): string {
+  const n = typeof v === "number" ? v : Number(v);
+  const value = Number.isFinite(n) ? n : 0;
+  return new Intl.NumberFormat("pl-PL", { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(value);
+}

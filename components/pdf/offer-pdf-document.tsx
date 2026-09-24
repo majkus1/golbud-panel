@@ -1,8 +1,9 @@
-import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Page, StyleSheet, View } from "@react-pdf/renderer";
+import { Text, pdfImageSource } from "@/components/pdf/pdf-primitives";
 import { amountInWordsPl } from "@/lib/amount-words-pl";
 import type { OfferSellerProfile } from "@/lib/offer-seller-profile";
 import type { PdfOfferLine } from "@/lib/offer-pdf-helpers";
-import { pdfFixed, pdfText } from "@/lib/pdf-text";
+import { pdfPlNumber as pdfFixed, pdfText } from "@/lib/pdf-text";
 import { PDF_FONT_FAMILY, registerPdfFonts } from "@/lib/register-pdf-fonts";
 
 registerPdfFonts();
@@ -223,7 +224,7 @@ export function OfferPdfDocument({
       <Page size="A4" style={styles.page}>
         <View style={styles.headerRow}>
           <View style={{ width: "44%" }}>
-            {logoPath ? <Image src={logoPath} style={styles.logo} /> : <Text style={{ fontSize: 16, fontWeight: "bold", color: C.brand }}>GolBud</Text>}
+            {logoPath ? <Image src={pdfImageSource(logoPath)} style={styles.logo} /> : <Text style={{ fontSize: 16, fontWeight: "bold", color: C.brand }}>GolBud</Text>}
           </View>
           <View style={styles.metaBox}>
             <Text style={styles.metaTitle}>OFERTA / KOSZTORYS</Text>

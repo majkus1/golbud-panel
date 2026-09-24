@@ -6,7 +6,7 @@ import { showToast } from "@/components/toast";
 import { AttachmentList } from "@/components/case/attachment-list";
 import { DocumentsSection } from "@/components/case/documents-section";
 import { supabase } from "@/lib/supabase";
-import type { Attachment, CaseRow, Payment } from "@/lib/types";
+import type { Attachment, CaseRow, ExtraWork, OfferLine, OfferVariant, Payment } from "@/lib/types";
 
 const CONTRACT_CATEGORIES = ["umowa", "aneks"] as const;
 
@@ -22,6 +22,10 @@ export function ContractTab({
   caseRow,
   payments,
   attachments,
+  variants,
+  linesByVariant,
+  selectedVariantId,
+  extras,
   onChange
 }: {
   caseId: string;
@@ -30,6 +34,10 @@ export function ContractTab({
   caseRow: CaseRow;
   payments: Payment[];
   attachments: Attachment[];
+  variants: OfferVariant[];
+  linesByVariant: Record<string, OfferLine[]>;
+  selectedVariantId: string | null;
+  extras: ExtraWork[];
   onChange: () => Promise<void>;
 }) {
   const files = useMemo(
@@ -69,6 +77,10 @@ export function ContractTab({
           payments={payments}
           onChange={onChange}
           categories={[...CONTRACT_CATEGORIES]}
+          variants={variants}
+          linesByVariant={linesByVariant}
+          defaultVariantId={selectedVariantId}
+          extras={extras}
           heading="Przygotuj umowę lub aneks z naszego wzoru"
           intro="Treść uzupełnia się danymi klienta i sprawy. Sprawdź ją, popraw w razie potrzeby i zapisz PDF — trafi na listę powyżej."
         />

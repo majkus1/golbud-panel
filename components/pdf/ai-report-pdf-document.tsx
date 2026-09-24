@@ -1,4 +1,5 @@
-import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Page, StyleSheet, View } from "@react-pdf/renderer";
+import { Text, pdfImageSource } from "@/components/pdf/pdf-primitives";
 import { pdfSafeText } from "@/lib/pdf-text";
 import { PDF_FONT_FAMILY, registerPdfFonts } from "@/lib/register-pdf-fonts";
 
@@ -246,7 +247,7 @@ export function AiReportPdfDocument({
         <View style={styles.topHeader} fixed>
           <View style={styles.topHeaderRow}>
             {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf Image nie renderuje HTML img. */}
-            {logoPath ? <Image src={logoPath} style={styles.logo} /> : <Text style={styles.brandWord}>GOLBUD</Text>}
+            {logoPath ? <Image src={pdfImageSource(logoPath)} style={styles.logo} /> : <Text style={styles.brandWord}>GOLBUD</Text>}
             <View style={styles.headerText}>
               <Text style={styles.eyebrow}>GolBud AI</Text>
               <Text style={styles.headerTitle}>{pdfSafeText(title)}</Text>

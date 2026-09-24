@@ -6,10 +6,15 @@ import { showToast } from "@/components/toast";
 import { AuthGate } from "@/components/auth-gate";
 import { useOrg } from "@/components/org-context";
 import {
+  ORGANIZATION_OFFER_SELECT,
   formFromOrganizationRow,
   organizationUpdateFromForm,
-  type OrganizationOfferForm
+  type OrganizationOfferForm,
+  type OrganizationOfferRow
 } from "@/lib/organization-offer-profile";
+
+/** Dane oferty + ustawienia maila z fakturą. Zwykły string, bo parser typów Supabase nie czyta szablonów. */
+const COMPANY_SELECT: string = ORGANIZATION_OFFER_SELECT + ", accountant_email, invoice_email_subject, invoice_email_body";
 import { supabase } from "@/lib/supabase";
 
 const VAT_OPTIONS = [0, 5, 8, 23];
@@ -84,7 +89,7 @@ function CompanySettingsInner() {
     const { data, error } = await supabase
       .from("organizations")
       .select(
-        "name, offer_legal_name, offer_nip, offer_address_line, offer_postal_city, offer_phone, offer_email, offer_website, offer_bank_account, offer_bank_name, offer_payment_terms, offer_default_vat_rate, offer_validity_days, accountant_email, invoice_email_subject, invoice_email_body"
+        COMPANY_SELECT
       )
       .eq("id", organizationId)
       .maybeSingle();
@@ -101,7 +106,8 @@ function CompanySettingsInner() {
       );
       setForm(null);
     } else if (data) {
-      setForm(formFromOrganizationRow({ ...data, name: data.name || "GolBud" }));
+      const row = data as unknown as OrganizationOfferRow;
+      setForm(formFromOrganizationRow({ ...row, name: row.name || "GolBud" }));
     }
     setLoading(false);
   }, [organizationId]);
@@ -164,7 +170,7 @@ function CompanySettingsInner() {
                   disabled={!isOwner}
                 />
               </Field>
-              <Field label="Pełna nazwa na ofercie (sprzedawca)">
+              <Field label="Pełna nazwa firmy" hint="tak jak w KRS — trafia do umów, protokołów i ofert">
                 <input
                   className="input"
                   value={form.offer_legal_name}
@@ -172,13 +178,30 @@ function CompanySettingsInner() {
                   disabled={!isOwner}
                 />
               </Field>
-              <Field label="NIP">
-                <input
-                  className="input"
-                  value={form.offer_nip}
-                  onChange={(e) => patch("offer_nip", e.target.value)}
-                  disabled={!isOwner}
-                />
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Field label="NIP">
+                  <input className="input" value={form.offer_nip} onChange={(e) => patch("offer_nip", e.target.value)} disabled={!isOwner} />
+                </Field>
+                <Field label="KRS">
+                  <input className="input" value={form.offer_krs} onChange={(e) => patch("offer_krs", e.target.value)} disabled={!isOwner} />
+                </Field>
+                <Field label="REGON">
+                  <input className="input" value={form.offer_regon} onChange={(e) => patch("offer_regon", e.target.value)} disabled={!isOwner} />
+                </Field>
+              </div>
+            </div>
+          </FormSection>
+
+          <FormSection step="1b" title="Dane do umów" desc="Wchodzą do zdania o stronach umowy: „… z siedzibą w …, reprezentowaną przez …”.">
+            <div className="grid gap-4">
+              <Field label="Siedziba — w jakiej miejscowości" hint="w miejscowniku, np. „Ożarowie Mazowieckim”">
+                <input className="input" value={form.offer_seat} onChange={(e) => patch("offer_seat", e.target.value)} disabled={!isOwner} />
+              </Field>
+              <Field label="Reprezentowana przez" hint="np. „komplementariusza Dawida Golczuka, uprawnionego do jednoosobowej reprezentacji spółki”">
+                <textarea className="input min-h-16" value={form.offer_representation} onChange={(e) => patch("offer_representation", e.target.value)} disabled={!isOwner} />
+              </Field>
+              <Field label="Pełnomocnik do umów przedwstępnych" hint="w bierniku, np. „Kacpra Szmurło”; puste = bez pełnomocnika">
+                <input className="input" value={form.offer_proxy} onChange={(e) => patch("offer_proxy", e.target.value)} disabled={!isOwner} />
               </Field>
             </div>
           </FormSection>
@@ -192,6 +215,12 @@ function CompanySettingsInner() {
                   onChange={(e) => patch("offer_phone", e.target.value)}
                   disabled={!isOwner}
                 />
+              </Field>
+              <Field label="Drugi telefon" hint="w nagłówku dokumentów, opcjonalnie">
+                <input className="input" value={form.offer_phone_secondary} onChange={(e) => patch("offer_phone_secondary", e.target.value)} disabled={!isOwner} />
+              </Field>
+              <Field label="Hasło w stopce dokumentów" hint="opcjonalnie">
+                <input className="input" value={form.offer_slogan} onChange={(e) => patch("offer_slogan", e.target.value)} disabled={!isOwner} />
               </Field>
               <Field label="E-mail">
                 <input

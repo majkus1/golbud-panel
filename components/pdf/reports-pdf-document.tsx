@@ -1,4 +1,5 @@
-import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Page, StyleSheet, View } from "@react-pdf/renderer";
+import { Text, pdfImageSource } from "@/components/pdf/pdf-primitives";
 import type { ReportMetrics, SourceMetrics, StatusMetrics } from "@/lib/reports-metrics";
 import { formatReportMoney, formatReportPercent } from "@/lib/reports-metrics";
 import { pdfSafeText, pdfText } from "@/lib/pdf-text";
@@ -240,7 +241,7 @@ export function ReportsPdfDocument({ organizationName, logoPath, generatedAt, me
       <Page size="A4" style={styles.page}>
         <View style={styles.headerBand}>
           <View style={styles.headerRow}>
-            {logoPath ? <Image src={logoPath} style={styles.logo} /> : <View style={{ width: 120 }} />}
+            {logoPath ? <Image src={pdfImageSource(logoPath)} style={styles.logo} /> : <View style={{ width: 120 }} />}
             <View style={styles.headerMeta}>
               <Text style={styles.headerTitle}>Raport sprzedaży i realizacji</Text>
               <Text style={styles.headerSub}>{pdfSafeText(organizationName)}</Text>

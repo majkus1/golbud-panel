@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { createElement } from "react";
 import { NextResponse } from "next/server";
 import { DocumentPdfDocument } from "@/components/pdf/document-pdf-document";
+import { getDocumentTemplate } from "@/lib/document-templates";
 import { formatPlDate } from "@/lib/offer-pdf-helpers";
 import { ORGANIZATION_OFFER_SELECT, sellerProfileFromOrganization } from "@/lib/organization-offer-profile";
 import { getSupabaseUserClient } from "@/lib/supabase-api-route";
@@ -14,11 +15,26 @@ type Body = {
   title?: string;
   body?: string;
   docNumber?: string | null;
+  /** Wzór, z którego powstał dokument — z niego biorą się domyślne podpisy, strony i stopka. */
+  templateId?: string | null;
+  /** Podpisy poprawione w generatorze; pusta lista = bez podpisów na końcu. */
+  signatures?: string[];
+  /** Starsze pola (sprzed wzorów z oznaczeniami) — nadal obsługiwane. */
   showParties?: boolean;
   showSignatures?: boolean;
   signLeft?: string;
   signRight?: string;
 };
+
+/** Podpisy: z żądania, potem ze starszych pól, na końcu z konfiguracji wzoru. */
+function resolveSignatures(payload: Body, templateSignatures: string[] | undefined): string[] {
+  if (Array.isArray(payload.signatures)) return payload.signatures.map((s) => String(s).trim()).filter(Boolean);
+  if (payload.showSignatures === false) return [];
+  if (typeof payload.signLeft === "string" || typeof payload.signRight === "string") {
+    return [payload.signLeft ?? "", payload.signRight ?? ""].map((s) => s.trim()).filter(Boolean);
+  }
+  return templateSignatures ?? ["Zamawiający", "Wykonawca"];
+}
 
 export async function POST(request: Request, context: { params: Promise<{ caseId: string }> }) {
   const { caseId } = await context.params;
@@ -57,6 +73,9 @@ export async function POST(request: Request, context: { params: Promise<{ caseId
   const logoPath = path.join(process.cwd(), "public", "logo-golbud.png");
   const logo = existsSync(logoPath) ? logoPath : null;
 
+  const template = payload.templateId ? getDocumentTemplate(payload.templateId) : undefined;
+  const parties = typeof payload.showParties === "boolean" ? (payload.showParties ? "boxes" : "none") : template?.parties ?? "boxes";
+
   const buffer = await renderToBuffer(
     createElement(DocumentPdfDocument, {
       logoPath: logo,
@@ -64,21 +83,18 @@ export async function POST(request: Request, context: { params: Promise<{ caseId
       docNumber: payload.docNumber || null,
       docDate: formatPlDate(new Date()),
       seller,
-      showParties: payload.showParties !== false,
+      parties,
       buyer: {
         name: caseRow.client_name,
-        nip: null,
-        address: caseRow.location,
+        nip: caseRow.client_tax_id ?? null,
+        address: caseRow.client_address || caseRow.location,
         city: null,
         phone: caseRow.phone,
         email: caseRow.email
       },
       body,
-      showSignatures: payload.showSignatures !== false,
-      signLeft: payload.signLeft || "Zamawiający",
-      // Puste pole = brak drugiego podpisu (np. oświadczenie VAT 8 % podpisuje tylko inwestor).
-      // Nazwa firmy tylko wtedy, gdy klient w ogóle nie przysłał tego pola.
-      signRight: typeof payload.signRight === "string" ? payload.signRight.trim() : seller.legalName
+      signatures: resolveSignatures(payload, template?.signatures),
+      footer: template?.footer ?? null
     }) as Parameters<typeof renderToBuffer>[0]
   );
 

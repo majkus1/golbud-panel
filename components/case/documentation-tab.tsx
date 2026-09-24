@@ -6,7 +6,7 @@ import { AsBuiltEstimatesSection } from "@/components/case/as-built-estimates-se
 import { DocumentsSection } from "@/components/case/documents-section";
 import { ProtocolsSection } from "@/components/case/protocols-section";
 import { DOC_SECTIONS, attachmentSection, sectionCategories, visibleDocSections, type DocSection } from "@/lib/case-tabs";
-import type { Attachment, CaseAsBuiltEstimate, CaseProtocol, CaseRow, OfferLine, OfferVariant, Payment } from "@/lib/types";
+import type { Attachment, CaseAsBuiltEstimate, CaseProtocol, CaseRow, ExtraWork, OfferLine, OfferVariant, Payment } from "@/lib/types";
 
 /**
  * Zakładka Dokumentacja — jedno miejsce na dokumenty budowy. Zastępuje cztery osobne
@@ -25,6 +25,7 @@ export function DocumentationTab({
   variants,
   linesByVariant,
   selectedVariantId,
+  extras,
   fieldView,
   showFinances,
   focusSection,
@@ -42,6 +43,7 @@ export function DocumentationTab({
   variants: OfferVariant[];
   linesByVariant: Record<string, OfferLine[]>;
   selectedVariantId: string | null;
+  extras: ExtraWork[];
   fieldView: boolean;
   showFinances: boolean;
   focusSection?: DocSection;
@@ -138,9 +140,12 @@ export function DocumentationTab({
                 caseRow={caseRow}
                 payments={payments}
                 onChange={onChange}
+                variants={variants}
+                linesByVariant={linesByVariant}
+                defaultVariantId={selectedVariantId}
                 categories={["protokół"]}
                 heading="Protokół z wzoru"
-                intro="Protokół odbioru albo przekazania terenu z danymi sprawy. Zapisany PDF pojawi się na liście powyżej."
+                intro="Protokół odbioru końcowego, częściowego (z pozycjami wariantu) albo przekazania terenu. Zapisany PDF pojawi się na liście powyżej."
               />
             </Card>
           )}
@@ -191,6 +196,7 @@ export function DocumentationTab({
               caseRow={caseRow}
               payments={payments}
               onChange={onChange}
+              extras={extras}
               categories={["oświadczenie", "wezwanie do zapłaty"]}
               heading="Dokument z wzoru"
               intro="Klauzula RODO, potwierdzenie odbioru gotówki, oświadczenie VAT 8 %, wezwanie do zapłaty."

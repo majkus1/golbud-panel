@@ -1,7 +1,11 @@
 import { renderToBuffer } from "@react-pdf/renderer";
+import path from "node:path";
+import { existsSync } from "node:fs";
 import { createElement } from "react";
 import { NextResponse } from "next/server";
 import { ProtocolPdfDocument } from "@/components/pdf/protocol-pdf-document";
+import { isoToPlDate } from "@/lib/date-parse";
+import { ORGANIZATION_OFFER_SELECT, sellerProfileFromOrganization } from "@/lib/organization-offer-profile";
 import { getSupabaseUserClient } from "@/lib/supabase-api-route";
 import type { CaseProtocol } from "@/lib/types";
 
@@ -36,15 +40,19 @@ export async function GET(
     return NextResponse.json({ error: "Nie znaleziono sprawy" }, { status: 404 });
   }
 
-  const { data: org } = await supabase.from("organizations").select("name").eq("id", caseRow.organization_id).maybeSingle();
+  const { data: org } = await supabase.from("organizations").select(ORGANIZATION_OFFER_SELECT).eq("id", caseRow.organization_id).maybeSingle();
+  const logoPath = path.join(process.cwd(), "public", "logo-golbud.png");
 
   const created = new Intl.DateTimeFormat("pl-PL", { dateStyle: "long" }).format(new Date(row.created_at));
 
   const buffer = await renderToBuffer(
     createElement(ProtocolPdfDocument, {
-      organizationName: org?.name || "GolBud",
+      seller: sellerProfileFromOrganization(org),
+      logoPath: existsSync(logoPath) ? logoPath : null,
       clientName: caseRow.client_name,
       location: caseRow.location,
+      contractNumber: caseRow.contract_number,
+      contractDate: isoToPlDate(caseRow.contract_date) || null,
       protocolType: row.protocol_type,
       notes: row.notes,
       createdAt: created
