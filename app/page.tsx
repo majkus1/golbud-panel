@@ -273,7 +273,7 @@ function Dashboard() {
           {[
             { href: "/cases?preset=realizacja", label: "W trakcie realizacji" },
             { href: "/tasks", label: "Moje zadania" },
-            { href: "/calendar", label: "Kalendarz" },
+            // Kalendarz jest niżej na pulpicie — bez osobnego skrótu.
             ...(role === "brygadzista" ? [{ href: "/time", label: "Czas pracy" }] : [])
           ].map((q) => (
             <Link
