@@ -110,6 +110,12 @@ export type CaseRow = {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  /** Planowany termin rozpoczęcia prac. */
+  planned_start_date: string | null;
+  /** PESEL albo NIP klienta — do umów. */
+  client_tax_id: string | null;
+  /** Adres klienta, gdy inny niż adres budowy (`location`). */
+  client_address: string | null;
 };
 
 export type AsBuiltLineSnapshot = {
