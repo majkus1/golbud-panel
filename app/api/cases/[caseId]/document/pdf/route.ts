@@ -76,7 +76,9 @@ export async function POST(request: Request, context: { params: Promise<{ caseId
       body,
       showSignatures: payload.showSignatures !== false,
       signLeft: payload.signLeft || "Zamawiający",
-      signRight: payload.signRight || seller.legalName
+      // Puste pole = brak drugiego podpisu (np. oświadczenie VAT 8 % podpisuje tylko inwestor).
+      // Nazwa firmy tylko wtedy, gdy klient w ogóle nie przysłał tego pola.
+      signRight: typeof payload.signRight === "string" ? payload.signRight.trim() : seller.legalName
     }) as Parameters<typeof renderToBuffer>[0]
   );
 

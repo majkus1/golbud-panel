@@ -52,6 +52,47 @@ export function registerPdfFonts(): void {
       { src: path.join(filesDir, "inter-latin-ext-700-normal.woff"), fontWeight: 700 }
     ]
   });
+  renameLoadedFonts(PDF_FONT_LATIN_EXT);
 
   Font.registerHyphenationCallback(pdfHyphenation);
+}
+
+/** Minimalny kształt wewnętrznego źródła fontu react-pdf, którego tu potrzebujemy. */
+type LoadableFontSource = {
+  fontWeight: number;
+  data: object | null;
+  _load: () => Promise<void>;
+};
+
+/**
+ * Oba pliki (`latin` i `latin-ext`) mają w środku tę samą nazwę PostScript „Inter-Regular”
+ * (a pogrubione „Inter-Bold”). pdfkit przy osadzaniu sprawdza, czy font o tej nazwie jest
+ * już w dokumencie, i jeśli tak — używa tamtego. Znaki z `latin-ext` dostawały wtedy numery
+ * glifów z `latin`: zamiast „ł” było „˷”, zamiast „ą” — „6”, a „ż” znikało.
+ *
+ * Nadajemy więc wczytanym fontom `latin-ext` własną nazwę. Plik fontu zostaje bez zmian,
+ * zmienia się tylko nazwa, pod którą pdfkit go rozpoznaje i osadza. Test
+ * `lib/register-pdf-fonts.test.ts` pilnuje, żeby w PDF-ie były dwa osobne fonty.
+ */
+function renameLoadedFonts(family: string): void {
+  const registered = Font.getRegisteredFonts()[family] as unknown as { sources?: LoadableFontSource[] } | undefined;
+  const sources = registered?.sources;
+  if (!sources?.length) {
+    throw new Error(`register-pdf-fonts: nie znaleziono źródeł rodziny ${family} — zmieniło się API react-pdf.`);
+  }
+  for (const source of sources) {
+    if (typeof source._load !== "function") {
+      throw new Error("register-pdf-fonts: brak FontSource._load — zmieniło się API react-pdf.");
+    }
+    const load = source._load.bind(source);
+    source._load = async () => {
+      await load();
+      if (source.data) {
+        Object.defineProperty(source.data, "postscriptName", {
+          value: `${family}-${source.fontWeight}`,
+          configurable: true
+        });
+      }
+    };
+  }
 }

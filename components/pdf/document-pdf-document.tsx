@@ -159,9 +159,15 @@ export function DocumentPdfDocument({
             <View style={styles.signCol}>
               <Text style={styles.signLine}>{pdfText(signLeft || "Podpis")}</Text>
             </View>
-            <View style={styles.signCol}>
-              <Text style={styles.signLine}>{pdfText(signRight || `${seller.legalName}`)}</Text>
-            </View>
+            {/* Pusty podpis po prawej = dokument podpisuje jedna strona (oświadczenie VAT 8 %). */}
+            {signRight?.trim() ? (
+              <View style={styles.signCol}>
+                <Text style={styles.signLine}>{pdfText(signRight)}</Text>
+              </View>
+            ) : (
+              // Pusta połowa, żeby jedyny podpis miał zwykłą szerokość, a nie całą stronę.
+              <View style={styles.signCol} />
+            )}
           </View>
         ) : null}
 

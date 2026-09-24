@@ -1,22 +1,14 @@
-/** Kwota w złotych — słownie po polsku (np. do ofert PDF). */
+/**
+ * Kwota w złotych — słownie po polsku (oferty, umowy, faktury, aneksy).
+ *
+ * Tysiąc, milion, złoty i grosz są rodzaju męskiego, więc zawsze „dwa”, nigdy „dwie”
+ * („trzydzieści dwa tysiące”). Samo 1000 to „tysiąc”, nie „jeden tysiąc”.
+ */
 
 const ONES_M = [
   "zero",
   "jeden",
   "dwa",
-  "trzy",
-  "cztery",
-  "pięć",
-  "sześć",
-  "siedem",
-  "osiem",
-  "dziewięć"
-];
-
-const ONES_F = [
-  "zero",
-  "jedna",
-  "dwie",
   "trzy",
   "cztery",
   "pięć",
@@ -70,9 +62,9 @@ function pluralGr(n: number): string {
   return "groszy";
 }
 
-function tripletWords(n: number, feminine: boolean): string {
+function tripletWords(n: number): string {
   if (n === 0) return "";
-  const ones = feminine ? ONES_F : ONES_M;
+  const ones = ONES_M;
   const parts: string[] = [];
   const h = Math.floor(n / 100);
   const rest = n % 100;
@@ -108,8 +100,8 @@ function integerToWords(n: number): string {
   while (rest > 0) {
     const chunk = rest % 1000;
     if (chunk > 0) {
-      const feminine = scale === 1;
-      let word = tripletWords(chunk, feminine);
+      // „tysiąc”, a nie „jeden tysiąc” — przy milionie „jeden milion” jest w umowach zwyczajowe.
+      let word = scale === 1 && chunk === 1 ? "" : tripletWords(chunk);
       if (scale === 1) {
         word = `${word} ${scaleWord(chunk, ["tysiąc", "tysiące", "tysięcy"])}`.trim();
       } else if (scale === 2) {
@@ -131,12 +123,13 @@ function integerToWords(n: number): string {
  */
 export function amountInWordsPl(amount: number): string {
   if (!Number.isFinite(amount)) return "zero złotych";
-  const abs = Math.abs(amount);
-  const zl = Math.floor(abs);
-  const gr = Math.round((abs - zl) * 100);
+  // Liczymy w groszach: 12,999 zł to 13,00 zł, a nie „dwanaście złotych sto groszy”.
+  const cents = Math.round(Math.abs(amount) * 100);
+  const zl = Math.floor(cents / 100);
+  const gr = cents % 100;
 
   const zlWords = integerToWords(zl);
-  const prefix = amount < 0 ? "minus " : "";
+  const prefix = amount < 0 && cents > 0 ? "minus " : "";
   const grPart = gr > 0 ? ` ${integerToWords(gr)} ${pluralGr(gr)}` : "";
   return `${prefix}${zlWords} ${pluralZl(zl)}${grPart}`.replace(/\s+/g, " ").trim();
 }
