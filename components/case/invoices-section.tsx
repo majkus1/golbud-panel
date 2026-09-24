@@ -3,6 +3,7 @@
 import { DateInput } from "@/components/date-input";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useConfirm } from "@/components/use-confirm";
 import { showToast } from "@/components/toast";
 import { Badge, Button, EmptyState } from "@/components/ui";
 import {
@@ -293,6 +294,7 @@ function InvoiceEditor({
   const [lines, setLines] = useState<InvoiceLine[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDelete, setShowDelete] = useState(false);
+  const { confirm, confirmDialog } = useConfirm();
   const [busy, setBusy] = useState(false);
   const [notesDraft, setNotesDraft] = useState(invoice.notes || "");
 
@@ -387,6 +389,12 @@ function InvoiceEditor({
   };
 
   const deleteLine = async (id: string) => {
+    const line = lines.find((l) => l.id === id);
+    const ok = await confirm({
+      title: "Usunąć pozycję faktury?",
+      message: `${line?.name ? `„${line.name}”` : "Pozycja"} zniknie z faktury, a suma przeliczy się od nowa.`
+    });
+    if (!ok) return;
     const { error } = await supabase.from("invoice_lines").delete().eq("id", id);
     if (error) {
       showToast(error.message, "error");
@@ -974,6 +982,7 @@ function InvoiceEditor({
         )}
       </div>
 
+      {confirmDialog}
       <ConfirmDialog
         open={showDelete}
         title="Usunąć fakturę?"

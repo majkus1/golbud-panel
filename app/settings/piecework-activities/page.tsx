@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
+import { BackLink } from "@/components/ui";
 import { AuthGate } from "@/components/auth-gate";
 import { showToast } from "@/components/toast";
 import { canViewPayroll, useOrg } from "@/components/org-context";
@@ -127,6 +128,7 @@ function PieceworkActivitiesInner() {
   return (
     <div className="grid max-w-3xl gap-6">
       <div>
+        <BackLink href="/settings/dictionaries" className="mb-2">Słowniki</BackLink>
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-steel">Ustawienia</p>
         <h1 className="mt-2 text-2xl font-bold text-ink">Czynności akordowe</h1>
         <p className="mt-2 text-sm text-steel">

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { AppShell } from "@/components/app-shell";
+import { BackLink } from "@/components/ui";
 import { AuthGate } from "@/components/auth-gate";
 import { CaseForm, caseCommercialPayload, caseInsertPayload } from "@/components/case-form";
 import { canCreateCases, useOrg } from "@/components/org-context";
@@ -105,7 +106,8 @@ function NewCase({ userId }: { userId: string }) {
   return (
     <div className="grid min-w-0 gap-6">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-steel">Nowe zlecenie</p>
+        <BackLink href="/cases" className="mb-2">Zapytania i oferty</BackLink>
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-steel">Dodaj zapytanie</p>
         <h1 className="mt-2 text-2xl font-bold text-ink sm:text-3xl">Karta klienta / budowy</h1>
         <p className="mt-2 text-sm text-steel">
           Po zapisaniu utworzymy harmonogram, wariant oferty
@@ -114,7 +116,7 @@ function NewCase({ userId }: { userId: string }) {
       </div>
       <CaseForm
         organizationId={organizationId}
-        submitLabel="Utwórz zlecenie"
+        submitLabel="Zapisz zapytanie"
         onSubmit={onSubmit}
         showTeam={canCreateCases(role)}
         showEstimate={canCreateCases(role)}

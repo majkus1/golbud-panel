@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { formatDateWhileTyping, isoToPlDate as isoToDisplay, parsePlDate } from "@/lib/date-parse";
 
 /**
  * Pole daty w formacie polskim (dd.mm.rrrr) z własnym kalendarzem.
@@ -59,40 +60,6 @@ function todayIso(): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
-/** ISO (rrrr-mm-dd) → tekst dd.mm.rrrr. Pusty string dla braku daty. */
-function isoToDisplay(iso: string | null | undefined): string {
-  if (!iso) return "";
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
-  if (!match) return "";
-  return `${match[3]}.${match[2]}.${match[1]}`;
-}
-
-/** Sprawdza, czy data faktycznie istnieje (odrzuca np. 31.02). */
-function isRealDate(day: number, month: number, year: number): boolean {
-  if (year < 1900 || year > 2200 || month < 1 || month > 12 || day < 1) return false;
-  const probe = new Date(year, month - 1, day);
-  return probe.getFullYear() === year && probe.getMonth() === month - 1 && probe.getDate() === day;
-}
-
-/** Tekst dd.mm.rrrr → ISO. Zwraca null, gdy data jest niepełna lub nieprawidłowa. */
-function displayToIso(text: string): string | null {
-  const digits = text.replace(/\D/g, "");
-  if (digits.length !== 8) return null;
-  const day = Number(digits.slice(0, 2));
-  const month = Number(digits.slice(2, 4));
-  const year = Number(digits.slice(4, 8));
-  if (!isRealDate(day, month, year)) return null;
-  return `${year}-${pad(month)}-${pad(day)}`;
-}
-
-/** Wstawia kropki w trakcie pisania: „08082026" → „08.08.2026". */
-function formatWhileTyping(text: string): string {
-  const digits = text.replace(/\D/g, "").slice(0, 8);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
-  return `${digits.slice(0, 2)}.${digits.slice(2, 4)}.${digits.slice(4)}`;
-}
-
 /** Poniedziałek = 0 (polski tydzień). */
 function mondayFirstWeekday(year: number, month: number): number {
   return (new Date(year, month, 1).getDay() + 6) % 7;
@@ -131,7 +98,7 @@ export function DateInput({
   // ale nie nadpisuje tego, co użytkownik właśnie wpisuje.
   useEffect(() => {
     if (!isControlled) return;
-    setText((current) => (displayToIso(current) === (value || null) ? current : isoToDisplay(value)));
+    setText((current) => (parsePlDate(current, { allowShortYear: true }) === (value || null) ? current : isoToDisplay(value)));
   }, [value, isControlled]);
 
   const emit = useCallback(
@@ -219,22 +186,33 @@ export function DateInput({
     };
   }, [open, updatePosition]);
 
+  // Dzień i miesiąc są dopełniane zerem od razu („5” → „05”), kropki i ukośniki działają
+  // jak przejście do następnej części daty. Szczegóły w `lib/date-parse.ts`.
   const handleTyping = (raw: string) => {
-    const formatted = formatWhileTyping(raw);
+    const formatted = formatDateWhileTyping(raw);
     setText(formatted);
-    const iso = displayToIso(formatted);
+    const iso = parsePlDate(formatted);
     if (iso) emit(iso);
     else if (formatted === "") emit("");
   };
 
-  // Po wyjściu z pola: niepełny albo nieprawidłowy wpis wraca do ostatniej poprawnej wartości.
+  // Po wyjściu z pola: rok dwucyfrowy staje się 20rr („5.8.26” → 05.08.2026),
+  // a niepełny albo nieprawidłowy wpis wraca do ostatniej poprawnej wartości.
   const handleBlur = () => {
-    if (text !== "" && !displayToIso(text)) {
+    if (text === "") {
+      onBlur?.({ target: { value: "" } });
+      return;
+    }
+    const iso = parsePlDate(text, { allowShortYear: true });
+    if (!iso) {
       setText(isoToDisplay(selectedIso));
       onBlur?.({ target: { value: selectedIso } });
       return;
     }
-    onBlur?.({ target: { value: displayToIso(text) ? (displayToIso(text) as string) : "" } });
+    const display = isoToDisplay(iso);
+    if (display !== text) setText(display);
+    if (iso !== selectedIso) emit(iso);
+    onBlur?.({ target: { value: iso } });
   };
 
   const pick = (day: number) => {

@@ -211,7 +211,7 @@ export function CaseForm({
 
       <FormSection step="2" title="Status i zespół" desc="Etap sprawy, ekipa oraz kto prowadzi i kto pracuje na budowie.">
         <div className="grid gap-4 md:grid-cols-3">
-          <Field label="Status procesu">
+          <Field label="Etap obsługi">
             <select value={values.status} onChange={(e) => update("status", e.target.value)} className="input">
               {CASE_STATUSES.map((s) => (
                 <option key={s} value={s}>
@@ -230,7 +230,7 @@ export function CaseForm({
             </select>
           </Field>
           <Field
-            label="Ekipa / brygada"
+            label="Brygada"
             hint={autoAssignCrewMembers ? "wybór dopisze jej członków do zespołu poniżej" : "grupa robocza, opcjonalnie"}
           >
             <select value={values.crew_id} onChange={(e) => void handleCrewChange(e.target.value)} className="input">

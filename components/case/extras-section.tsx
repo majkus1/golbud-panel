@@ -45,7 +45,7 @@ export function ExtrasSection({
   return (
     <section className="min-w-0 rounded-lg bg-white p-4 shadow-panel sm:p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="min-w-0 text-base font-bold text-ink sm:text-lg">Prace dodatkowe</h2>
+        <h2 className="min-w-0 text-base font-bold text-ink sm:text-lg">Roboty dodatkowe</h2>
         <button type="button" onClick={add} className={btnSectionAdd}>
           <span className="sm:hidden">+ Pozycja</span>
           <span className="hidden sm:inline">Dodaj pozycję</span>

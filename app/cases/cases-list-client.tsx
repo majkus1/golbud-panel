@@ -38,11 +38,11 @@ const TERMINAL = new Set(["rozliczone", "utracone"]);
 function presetLabel(p: CaseListPreset): string {
   switch (p) {
     case CASE_LIST_PRESET.noweZapytania:
-      return "Nowe zlecenia";
+      return "Nowe zapytania";
     case CASE_LIST_PRESET.wOfercie:
-      return "W trakcie realizacji (grupa statusów)";
+      return "Oferty w toku (wycena, decyzja klienta, umowa)";
     case CASE_LIST_PRESET.realizacja:
-      return "Realizacja (grupa statusów)";
+      return "W trakcie realizacji (termin, realizacja, odbiór)";
     case CASE_LIST_PRESET.kontaktPoTerminie:
       return "Zaległe kontakty";
     case CASE_LIST_PRESET.zalegleZlecenia:
@@ -201,8 +201,8 @@ export function CasesListClient() {
     <div className="grid min-w-0 gap-6">
       <div className="grid min-w-0 gap-3 sm:flex sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-steel">Lista zleceń</p>
-          <h1 className="mt-2 max-w-full text-2xl font-bold leading-tight text-ink sm:text-3xl">Zlecenia i budowy</h1>
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-steel">Lista spraw</p>
+          <h1 className="mt-2 max-w-full text-2xl font-bold leading-tight text-ink sm:text-3xl">Zapytania i oferty</h1>
         </div>
         <div className="flex flex-wrap gap-2">
           {canCreateCases(role) && (
@@ -236,7 +236,7 @@ export function CasesListClient() {
                 Eksport CSV
               </button>
               <Link href="/cases/new" className="rounded-md bg-ink px-4 py-3 text-center text-sm font-semibold text-white hover:bg-moss">
-                Nowe zlecenie
+                Dodaj zapytanie
               </Link>
             </>
           )}
@@ -281,11 +281,11 @@ export function CasesListClient() {
             className="input"
           />
           <select value={selectValue} onChange={(e) => onFilterChange(e.target.value)} className="input">
-            <option value="all">Wszystkie zlecenia</option>
+            <option value="all">Wszystkie sprawy</option>
             <optgroup label="Skróty z pulpitu">
-              <option value={`preset|${CASE_LIST_PRESET.noweZapytania}`}>Nowe zlecenia</option>
-              <option value={`preset|${CASE_LIST_PRESET.wOfercie}`}>W trakcie realizacji</option>
-              <option value={`preset|${CASE_LIST_PRESET.realizacja}`}>Realizacja</option>
+              <option value={`preset|${CASE_LIST_PRESET.noweZapytania}`}>Nowe zapytania</option>
+              <option value={`preset|${CASE_LIST_PRESET.wOfercie}`}>Oferty w toku</option>
+              <option value={`preset|${CASE_LIST_PRESET.realizacja}`}>W trakcie realizacji</option>
               <option value={`preset|${CASE_LIST_PRESET.kontaktPoTerminie}`}>Zaległe kontakty</option>
               <option value={`preset|${CASE_LIST_PRESET.zalegleZlecenia}`}>Zaległe zlecenia</option>
             </optgroup>

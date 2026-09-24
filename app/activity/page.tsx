@@ -154,7 +154,7 @@ function ActivityInner() {
   if (!canViewActivityLog(role)) {
     return (
       <div className="rounded-lg bg-white p-6 shadow-panel">
-        <h1 className="text-xl font-bold text-ink">Dziennik zmian</h1>
+        <h1 className="text-xl font-bold text-ink">Historia zmian</h1>
         <p className="mt-2 text-sm text-steel">Ten widok jest dostępny dla właściciela, biura i kierownika.</p>
       </div>
     );
@@ -164,7 +164,7 @@ function ActivityInner() {
     <div className="grid min-w-0 gap-5 sm:gap-6">
       <div className="min-w-0">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-steel">Kontrola</p>
-        <h1 className="mt-2 text-2xl font-bold text-ink sm:text-3xl">Dziennik zmian</h1>
+        <h1 className="mt-2 text-2xl font-bold text-ink sm:text-3xl">Historia zmian</h1>
         <p className="mt-2 text-sm text-steel">
           Kto, co i kiedy — sprawy, płatności, faktury, magazyn, zespół i reszta. Wszystko w jednym miejscu.
         </p>

@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ATTACHMENT_CATEGORIES } from "@/lib/domain";
+import { showToast } from "@/components/toast";
+import { useConfirm } from "@/components/use-confirm";
 import { supabase } from "@/lib/supabase";
 import type { Attachment, AttachmentCategory } from "@/lib/types";
 
@@ -21,6 +23,7 @@ export function AttachmentsSection({
   items: Attachment[];
   onChange: () => Promise<void>;
 }) {
+  const { confirm, confirmDialog } = useConfirm();
   const [cat, setCat] = useState<AttachmentCategory>("w trakcie");
   const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState("");
@@ -108,9 +111,21 @@ export function AttachmentsSection({
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   };
 
+  // Najpierw wpis w bazie, potem plik: gdy baza odmówi (uprawnienia), plik zostaje na miejscu.
+  // Odwrotna kolejność zostawiała na liście wpis wskazujący na nieistniejący plik.
   const remove = async (a: Attachment) => {
+    const ok = await confirm({
+      title: "Usunąć plik?",
+      message: `„${a.file_name}” zostanie usunięty ze sprawy. Tego nie da się cofnąć.`
+    });
+    if (!ok) return;
+    const { error } = await supabase.from("attachments").delete().eq("id", a.id);
+    if (error) {
+      showToast("Nie udało się usunąć pliku", "error");
+      return;
+    }
     await supabase.storage.from("case-attachments").remove([a.storage_path]);
-    await supabase.from("attachments").delete().eq("id", a.id);
+    showToast("Usunięto plik");
     await onChange();
   };
 
@@ -260,6 +275,7 @@ export function AttachmentsSection({
           </div>
         </div>
       )}
+      {confirmDialog}
     </section>
   );
 }

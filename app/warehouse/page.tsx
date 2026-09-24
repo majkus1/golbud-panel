@@ -619,7 +619,7 @@ function WarehouseInner({ userId }: { userId: string }) {
           </div>
         )}
 
-        <p className="mt-4 text-xs font-semibold text-steel">Dziennik zmian ({selectedPeriodLabel})</p>
+        <p className="mt-4 text-xs font-semibold text-steel">Historia zmian ({selectedPeriodLabel})</p>
         <p className="mt-0.5 text-[0.7rem] text-stone-400">Każdy ruch i zmiana pozycji — z datą, godziną i autorem.</p>
         {activityLog.length === 0 ? (
           <p className="mt-2 text-sm text-steel">Brak wpisów w wybranym okresie.</p>

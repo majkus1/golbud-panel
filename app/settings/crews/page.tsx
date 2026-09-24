@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
+import { BackLink } from "@/components/ui";
 import { AuthGate } from "@/components/auth-gate";
 import { canManageOrg, useOrg } from "@/components/org-context";
 import { showToast } from "@/components/toast";
@@ -97,7 +98,7 @@ function CrewsInner() {
   if (!canUse) {
     return (
       <div className="rounded-xl2 border border-stone-200/80 bg-white p-6 shadow-card">
-        <h1 className="text-xl font-bold text-ink">Ekipy / brygady</h1>
+        <h1 className="text-xl font-bold text-ink">Brygady</h1>
         <p className="mt-2 text-sm text-steel">Ten słownik jest dostępny tylko dla ról zarządczych.</p>
       </div>
     );
@@ -112,8 +113,9 @@ function CrewsInner() {
   return (
     <div className="grid min-w-0 gap-6">
       <div>
+        <BackLink href="/settings/dictionaries" className="mb-2">Słowniki</BackLink>
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-steel">Słowniki</p>
-        <h1 className="mt-2 text-2xl font-bold text-ink">Ekipy / brygady</h1>
+        <h1 className="mt-2 text-2xl font-bold text-ink">Brygady</h1>
         <p className="mt-2 max-w-2xl text-sm text-steel">
           Skład osobowy brygady. Wybór brygady na zleceniu automatycznie przypisze jej członków (posiadających konto) do realizacji.
         </p>
@@ -128,10 +130,10 @@ function CrewsInner() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && void add()}
-              placeholder="np. Ekipa elewacje — Kraków"
+              placeholder="np. Brygada elewacje — Kraków"
             />
             <button type="button" onClick={() => void add()} disabled={!name.trim()} className="shrink-0 rounded-lg bg-ink px-4 py-2.5 text-sm font-semibold text-white hover:bg-moss disabled:opacity-50">
-              + Ekipa
+              Dodaj brygadę
             </button>
           </div>
           {loading ? (

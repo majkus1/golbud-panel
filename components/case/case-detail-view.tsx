@@ -1,5 +1,6 @@
 "use client";
 
+import { BackLink } from "@/components/ui";
 import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -13,6 +14,7 @@ import { TemplateApplyPanel } from "@/components/case/template-apply-panel";
 import { InvoicesSection } from "@/components/case/invoices-section";
 import { ProcessTimeline } from "@/components/case/process-timeline";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useConfirm } from "@/components/use-confirm";
 import { CaseActivityPreview } from "@/components/case-activity-preview";
 import { CaseLeadBadge } from "@/components/case-lead-badge";
 import { canManageOrg, canManageCaseTeam, canSeeFinances, canUseAssistant, isFieldRole, useOrg } from "@/components/org-context";
@@ -59,8 +61,8 @@ type Tab =
   | "assistant";
 
 const primaryTabs: { id: Tab; label: string }[] = [
-  { id: "overview", label: "Przegląd" },
-  { id: "offer", label: "Wycena / oferta" },
+  { id: "overview", label: "Podsumowanie" },
+  { id: "offer", label: "Wycena i oferta" },
   { id: "invoices", label: "Faktury" },
   { id: "schedule", label: "Harmonogram" },
   { id: "payments", label: "Płatności" },
@@ -74,7 +76,7 @@ const primaryTabs: { id: Tab; label: string }[] = [
 const secondaryTabs: { id: Tab; label: string }[] = [
   { id: "reminders", label: "Przypomnienia" },
   { id: "subcontractors", label: "Podwykonawcy" },
-  { id: "extras", label: "Prace dodatkowe" },
+  { id: "extras", label: "Roboty dodatkowe" },
   { id: "protocols", label: "Protokoły" },
   { id: "as-built", label: AS_BUILT_ESTIMATE_LABEL },
   { id: "documents", label: "Dokumenty" },
@@ -122,6 +124,7 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
   const caseId = params.id;
   const { role } = useOrg();
   const showFinances = canSeeFinances(role);
+  const { confirm, confirmDialog } = useConfirm();
   const canManage = canManageOrg(role);
   const canEditTeam = canManageCaseTeam(role);
   const fieldView = isFieldRole(role);
@@ -393,6 +396,12 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
   };
 
   const deleteLine = async (id: string) => {
+    const line = Object.values(linesByVariant).flat().find((l) => l.id === id);
+    const ok = await confirm({
+      title: "Usunąć pozycję kosztorysu?",
+      message: `${line?.label ? `„${line.label}” zniknie z wariantu.` : "Pozycja zniknie z wariantu."} Suma oferty przeliczy się od nowa.`
+    });
+    if (!ok) return;
     const { error } = await supabase.from("offer_lines").delete().eq("id", id);
     if (error) { showToast("Nie udało się usunąć pozycji", "error"); return; }
     showToast("Usunięto pozycję");
@@ -430,6 +439,7 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
     <div className="grid min-w-0 max-w-full gap-4 sm:gap-6">
       <div className="flex min-w-0 flex-col gap-3 sm:gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0 flex-1">
+          <BackLink href="/cases" className="mb-1.5 sm:mb-2">Zapytania i oferty</BackLink>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-steel sm:text-sm">Karta sprawy</p>
           <h1 className="mt-1.5 truncate text-xl font-bold text-ink sm:mt-2 sm:text-3xl">{caseRow.client_name}</h1>
           <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
@@ -703,7 +713,7 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
               <div className="flex flex-col gap-2 sm:flex-row">
                 <input value={newVariantName} onChange={(e) => setNewVariantName(e.target.value)} className="input sm:flex-1" placeholder="Nazwa nowego wariantu (np. Wariant premium)" />
                 <button type="button" onClick={addVariant} className={`${btnSectionAdd} w-full sm:w-auto`}>
-                  + Wariant
+                  Dodaj wariant
                 </button>
               </div>
             </div>
@@ -1148,6 +1158,7 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
         />
       )}
 
+      {confirmDialog}
       <ConfirmDialog
         open={showDelete}
         title="Usunąć sprawę?"

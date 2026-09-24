@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
+import { BackLink } from "@/components/ui";
 import { AuthGate } from "@/components/auth-gate";
 import { DateInput } from "@/components/date-input";
 import { canManageOrg, canViewPayroll, useOrg } from "@/components/org-context";
@@ -254,7 +255,7 @@ function HrInner() {
   return (
     <div className="grid min-w-0 gap-5">
       <header className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div className="min-w-0"><p className="text-sm font-semibold uppercase tracking-[0.18em] text-steel">Kadry</p><h1 className="mt-1 text-2xl font-bold text-ink sm:text-3xl">Pracownicy i dokumenty</h1><p className="mt-1 max-w-3xl text-sm text-steel">Terminy, dokumenty, stanowiska i historia pracy w jednym miejscu.</p></div>
+        <div className="min-w-0"><BackLink href="/" className="mb-2">Pulpit</BackLink><p className="text-sm font-semibold uppercase tracking-[0.18em] text-steel">Kadry</p><h1 className="mt-1 text-2xl font-bold text-ink sm:text-3xl">Pracownicy i dokumenty</h1><p className="mt-1 max-w-3xl text-sm text-steel">Terminy, dokumenty, stanowiska i historia pracy w jednym miejscu.</p></div>
         <div className="flex flex-wrap gap-2"><Link href="/calendar" className="rounded-lg border border-stone-300 px-3 py-2 text-sm font-semibold text-ink hover:bg-stone-50">Kalendarz terminów</Link><Link href="/settings/organization" className="rounded-lg bg-ink px-3 py-2 text-sm font-semibold text-white hover:bg-moss">Struktura firmy</Link></div>
       </header>
       {loadError && <p className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{loadError}</p>}

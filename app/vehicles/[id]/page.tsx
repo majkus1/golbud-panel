@@ -1,10 +1,10 @@
 "use client";
 
 import { DateInput } from "@/components/date-input";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
+import { BackLink } from "@/components/ui";
 import { AuthGate } from "@/components/auth-gate";
 import { showToast } from "@/components/toast";
 import { useOrg } from "@/components/org-context";
@@ -103,9 +103,7 @@ function VehicleDetail() {
   if (!vehicle) {
     return (
       <div>
-        <Link href="/vehicles" className="text-sm text-moss hover:underline">
-          ← Samochody
-        </Link>
+        <BackLink href="/vehicles">Samochody</BackLink>
         <p className="mt-4 text-steel">Nie znaleziono pojazdu.</p>
       </div>
     );
@@ -118,9 +116,7 @@ function VehicleDetail() {
   return (
     <div className="grid max-w-3xl gap-6">
       <div>
-        <Link href="/vehicles" className="text-sm text-moss hover:underline">
-          ← Samochody
-        </Link>
+        <BackLink href="/vehicles">Samochody</BackLink>
         <h1 className="mt-2 text-2xl font-bold text-ink">{vehicle.name}</h1>
       </div>
 

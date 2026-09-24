@@ -108,7 +108,7 @@ function BoardCard({
             <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-steel">{caseRow.source}</span>
           </div>
           <p className="mt-1 text-xs text-steel">{caseRow.location || "Bez lokalizacji"}</p>
-          <p className="mt-1 text-xs text-steel">Ekipa: {crewLabel}</p>
+          <p className="mt-1 text-xs text-steel">Brygada: {crewLabel}</p>
           <div className="mt-2 grid grid-cols-2 gap-1 text-[11px]">
             <span className={overdue ? "font-semibold text-amber-700" : "text-steel"}>
               Kontakt: {formatDate(caseRow.next_contact_date)}
@@ -270,10 +270,10 @@ function Board() {
     <div className="grid min-w-0 gap-5">
       <div className="grid gap-3 sm:flex sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-steel">Tablica</p>
-          <h1 className="mt-2 text-2xl font-bold text-ink sm:text-3xl">Zlecenia wg etapu</h1>
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-steel">Etapy obsługi</p>
+          <h1 className="mt-2 text-2xl font-bold text-ink sm:text-3xl">Sprawy według etapu obsługi</h1>
           <p className="mt-1 text-sm text-steel">
-            Aktywne sprawy w kolumnach — szybka zmiana statusu oraz filtr po ekipie, źródle i osobie prowadzącej.
+            Aktywne sprawy w kolumnach — szybka zmiana statusu oraz filtr po brygadzie, źródle i osobie prowadzącej.
             {dragEnabled ? " Na komputerze przeciągnij kartę (uchwyt po lewej) do innej kolumny." : null}
           </p>
         </div>
@@ -282,9 +282,9 @@ function Board() {
       <section className="rounded-lg bg-white p-4 shadow-panel">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_auto]">
           <label className="grid gap-1 text-xs font-semibold text-steel">
-            Ekipa
+            Brygada
             <select value={filterCrew} onChange={(e) => setFilterCrew(e.target.value)} className="input">
-              <option value="">wszystkie ekipy</option>
+              <option value="">wszystkie brygady</option>
               {crews.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
+import { BackLink } from "@/components/ui";
 import { AuthGate } from "@/components/auth-gate";
 import { CaseForm, caseCommercialPayload, caseUpdatePayload, valuesFromCase } from "@/components/case-form";
 import { canCreateCases, isFieldRole, useOrg } from "@/components/org-context";
@@ -101,12 +102,10 @@ function EditCase({ userId }: { userId: string }) {
     <div className="grid min-w-0 gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
+          <BackLink href={`/cases/${params.id}`} className="mb-2">Karta zlecenia</BackLink>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-steel">Edycja sprawy</p>
           <h1 className="mt-2 text-2xl font-bold text-ink">Dane podstawowe</h1>
         </div>
-        <Link href={`/cases/${params.id}`} className="text-sm font-semibold text-moss hover:underline">
-          Wróć do karty
-        </Link>
       </div>
       <CaseForm
         key={params.id}

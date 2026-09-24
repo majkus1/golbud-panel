@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
+import { BackLink } from "@/components/ui";
 import { AuthGate } from "@/components/auth-gate";
 import { DateInput } from "@/components/date-input";
 import { ExpandableText } from "@/components/expandable-text";
@@ -305,9 +305,7 @@ function FinancialControlInner({ userId }: { userId: string }) {
     <div className="grid min-w-0 gap-5">
       <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
-          <Link href="/reports" className="text-sm font-semibold text-moss hover:underline">
-            ← Raporty
-          </Link>
+          <BackLink href="/reports">Raporty</BackLink>
           <p className="mt-3 text-sm font-semibold uppercase tracking-[0.18em] text-steel">Kontrola finansów i budów</p>
           <h1 className="mt-2 break-words text-2xl font-bold text-ink sm:text-3xl">Rejestr należności i harmonogram budów</h1>
           <p className="mt-1 max-w-3xl break-words text-sm leading-6 text-steel">

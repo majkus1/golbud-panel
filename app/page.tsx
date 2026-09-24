@@ -143,19 +143,19 @@ function Dashboard() {
   const stats = useMemo(
     () => [
       {
-        label: "Nowe zlecenia",
+        label: "Nowe zapytania",
         value: cases.filter((c) => c.status === "nowe zapytanie").length,
         href: `/cases?preset=${CASE_LIST_PRESET.noweZapytania}`
       },
       {
-        label: "W trakcie realizacji",
+        label: "Oferty w toku",
         value: cases.filter((c) =>
           ["do wyceny", "wycena wysłana", "do decyzji klienta", "umowa do podpisu"].includes(c.status)
         ).length,
         href: `/cases?preset=${CASE_LIST_PRESET.wOfercie}`
       },
       {
-        label: "Realizacja",
+        label: "W trakcie realizacji",
         value: cases.filter((c) => ["termin zarezerwowany", "realizacja", "odbiór"].includes(c.status)).length,
         href: `/cases?preset=${CASE_LIST_PRESET.realizacja}`
       },
@@ -278,7 +278,7 @@ function Dashboard() {
             href="/cases/new"
             className="w-full max-w-full rounded-lg bg-ink px-4 py-3 text-center text-sm font-semibold text-white hover:bg-moss sm:w-auto"
           >
-            Nowe zlecenie
+            Dodaj zapytanie
           </Link>
         </div>
       </div>
@@ -316,11 +316,11 @@ function Dashboard() {
 
       <section className="grid min-w-0 grid-cols-2 gap-2.5 sm:flex sm:flex-wrap sm:gap-3">
         {[
-          { href: "/board", label: "Tablica" },
+          { href: "/board", label: "Etapy obsługi" },
           { href: "/tasks", label: "Zadania pracowników" },
           { href: "/calendar", label: "Kalendarz" },
           { href: "/reports", label: "Raporty + eksport" }
-          // Samochody i magazyn zostają w menu bocznym, w grupie „Zasoby".
+          // Samochody i magazyn zostają w menu bocznym, w grupie „Zarządzanie firmą".
         ].map((q) => (
           <Link
             key={q.href}

@@ -2,6 +2,7 @@
 
 import { DateInput } from "@/components/date-input";
 import { showToast } from "@/components/toast";
+import { useConfirm } from "@/components/use-confirm";
 import { isDue } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import type { CaseScheduleItem } from "@/lib/types";
@@ -18,6 +19,7 @@ export function ScheduleSection({
   items: CaseScheduleItem[];
   onChange: () => Promise<void>;
 }) {
+  const { confirm, confirmDialog } = useConfirm();
   const update = async (id: string, patch: Partial<CaseScheduleItem>, silent = false) => {
     const { error } = await supabase.from("case_schedule_items").update(patch).eq("id", id);
     if (error) { showToast("Nie udało się zapisać", "error"); return; }
@@ -37,6 +39,12 @@ export function ScheduleSection({
     await onChange();
   };
   const remove = async (id: string) => {
+    const item = items.find((i) => i.id === id);
+    const ok = await confirm({
+      title: "Usunąć etap harmonogramu?",
+      message: `${item?.title ? `Etap „${item.title}”` : "Etap"} zniknie z harmonogramu razem z datami i opisem.`
+    });
+    if (!ok) return;
     const { error } = await supabase.from("case_schedule_items").delete().eq("id", id);
     if (error) { showToast("Nie udało się usunąć", "error"); return; }
     showToast("Usunięto etap");
@@ -173,6 +181,7 @@ export function ScheduleSection({
           );
         })}
       </div>
+      {confirmDialog}
     </section>
   );
 }

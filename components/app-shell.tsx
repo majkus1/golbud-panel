@@ -21,50 +21,50 @@ type NavGroup = {
   items: NavItem[];
 };
 
+/**
+ * Trzy grupy zamiast czterech — Dawid pisał 11.09, że menu jest „porozrzucane”.
+ * „Nowe zlecenie” nie ma osobnej pozycji: przycisk „Dodaj zapytanie” jest na Pulpicie
+ * i nad listą „Zapytania i oferty”, a każda rola z `canCreateCases` widzi obie strony.
+ * Adresy i uprawnienia (`roles`) bez zmian — zmieniły się tylko nazwy i grupy.
+ */
 const navGroups: NavGroup[] = [
   {
     title: "Praca",
     items: [
-      { href: "/", label: "Dashboard" },
-      { href: "/board", label: "Tablica", roles: ["sales"] },
+      { href: "/", label: "Pulpit" },
+      { href: "/cases", label: "Zapytania i oferty", roles: ["owner", "office", "sales", "manager"] },
+      { href: "/board", label: "Etapy obsługi", roles: ["sales"] },
       { href: "/cases?preset=realizacja", label: "W trakcie realizacji", roles: ["sales", "brygadzista", "podwykonawca", "member"] },
-      { href: "/cases", label: "Zlecenia", roles: ["owner", "office", "sales", "manager"] },
-      { href: "/cases/new", label: "Nowe zlecenie", roles: ["owner", "office", "sales", "manager"] },
       { href: "/tasks", label: "Zadania pracowników" },
-      { href: "/notifications", label: "Powiadomienia" },
       { href: "/calendar", label: "Kalendarz" },
+      { href: "/notifications", label: "Powiadomienia" },
       { href: "/assistant", label: "Asystent AI", roles: ["sales", "brygadzista"] },
       { href: "/time", label: "Czas pracy", roles: ["brygadzista"] },
     ]
   },
   {
-    title: "Zasoby",
+    title: "Zarządzanie firmą",
     items: [
       { href: "/reports", label: "Raporty", roles: [] },
       { href: "/reports/profitability", label: "Rentowność budów", roles: [] },
       { href: "/settlements/employees", label: "Rozliczenia pracowników", roles: [] },
+      { href: "/hr", label: "Kadry i dokumenty", roles: [] },
       { href: "/vehicles", label: "Samochody", roles: [] },
       { href: "/policies", label: "Polisy firmowe", roles: [] },
       { href: "/warehouse", label: "Magazyn", roles: ["brygadzista", "member"] },
-      { href: "/equipment", label: "Sprzęt / rusztowania", roles: ["brygadzista", "member"] }
-    ]
-  },
-  {
-    title: "Kontrola",
-    items: [
-      { href: "/hr", label: "Kadry i dokumenty", roles: [] },
-      { href: "/activity", label: "Dziennik zmian", roles: [] }
+      { href: "/equipment", label: "Sprzęt i rusztowania", roles: ["brygadzista", "member"] }
     ]
   },
   {
     title: "Ustawienia",
     items: [
-      { href: "/settings/dictionaries", label: "Słowniki", roles: [] },
-      { href: "/settings/organization", label: "Struktura firmy", roles: [] },
-      { href: "/settings/subcontractors", label: "Podwykonawcy", roles: [] },
-      { href: "/settings/catalog", label: "Katalog pozycji", roles: [] },
       { href: "/settings/company", label: "Firma", roles: [] },
       { href: "/settings/team", label: "Zespół i role", roles: [] },
+      { href: "/settings/organization", label: "Struktura firmy", roles: [] },
+      { href: "/settings/dictionaries", label: "Słowniki", roles: [] },
+      { href: "/settings/catalog", label: "Katalog pozycji", roles: [] },
+      { href: "/settings/subcontractors", label: "Podwykonawcy", roles: [] },
+      { href: "/activity", label: "Historia zmian", roles: [] },
       // Ustawienie osobiste, nie firmowe — handlowiec też musi mieć tu dostęp.
       { href: "/settings/mail", label: "Moja poczta", roles: ["sales"] }
     ]
@@ -89,7 +89,7 @@ function parseNavHref(href: string): { path: string; preset: string | null } {
   return { path, preset: qs ? new URLSearchParams(qs).get("preset") : null };
 }
 
-/** Presety /cases z własną pozycją w menu — „Zlecenia” nie jest aktywne, gdy któryś z nich jest w URL. */
+/** Presety /cases z własną pozycją w menu — „Zapytania i oferty” nie jest aktywne, gdy któryś z nich jest w URL. */
 function navCasePresets(): string[] {
   return navGroups
     .flatMap((g) => g.items)
@@ -105,10 +105,9 @@ function isNavActive(pathname: string, searchParams: URLSearchParams, href: stri
   if (path === "/notifications") return pathname === "/notifications";
   if (path === "/activity") return pathname === "/activity";
   if (path === "/assistant") return pathname === "/assistant";
-  if (path === "/cases/new") return pathname === "/cases/new";
 
+  // „Dodaj zapytanie” nie ma własnej pozycji, więc /cases/new podświetla „Zapytania i oferty”.
   if (path === "/cases") {
-    if (pathname === "/cases/new") return false;
     if (!pathname.startsWith("/cases")) return false;
 
     if (hrefPreset) {

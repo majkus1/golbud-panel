@@ -66,6 +66,28 @@ export function ButtonLink({ href, variant = "primary", size = "md", block, clas
   );
 }
 
+/**
+ * Powrót do strony nadrzędnej („← Zapytania i oferty”, „← Słowniki”).
+ *
+ * Celowo stały adres, a nie `router.back()`: po wejściu z linku w mailu albo po odświeżeniu
+ * historia przeglądarki prowadzi poza program, a Dawid prosił o przycisk, który zawsze
+ * wraca do właściwej listy.
+ */
+export function BackLink({ href, children, className }: { href: string; children: ReactNode; className?: string }) {
+  return (
+    <Link
+      href={href}
+      className={cx(
+        "inline-flex items-center gap-1.5 rounded-lg py-1 text-sm font-semibold text-moss transition hover:text-ink hover:underline",
+        className
+      )}
+    >
+      <span aria-hidden="true">←</span>
+      <span>{children}</span>
+    </Link>
+  );
+}
+
 type CardProps = HTMLAttributes<HTMLDivElement> & { padded?: boolean };
 
 export function Card({ padded = true, className, ...props }: CardProps) {

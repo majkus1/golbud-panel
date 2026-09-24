@@ -125,7 +125,7 @@ export function CaseTeamPicker({
   return (
     <div className="mt-4 grid gap-5 lg:grid-cols-2">
       <div className="rounded-xl2 border border-sky-200/80 bg-sky-50/40 p-4">
-        <h3 className="text-sm font-bold text-ink">Odpowiedzialni</h3>
+        <h3 className="text-sm font-bold text-ink">Osoby prowadzące</h3>
         <p className="mt-1 text-xs leading-relaxed text-steel">
           Prowadzą sprawę po stronie biura (handlowiec, kierownik). Widzą pełną kartę zlecenia i finanse.
         </p>

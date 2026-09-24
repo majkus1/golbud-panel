@@ -3,8 +3,10 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
+import { BackLink } from "@/components/ui";
 import { AuthGate } from "@/components/auth-gate";
 import { showToast } from "@/components/toast";
+import { useConfirm } from "@/components/use-confirm";
 import { useOrg } from "@/components/org-context";
 import { parseAmount } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
@@ -42,6 +44,7 @@ function draftFromItem(item: CatalogItem): EditDraft {
 function CatalogInner() {
   const { organizationId } = useOrg();
   const searchParams = useSearchParams();
+  const { confirm, confirmDialog } = useConfirm();
   const initialFilter = searchParams.get("category") === "labor" ? "labor" : searchParams.get("category") === "material" ? "material" : "all";
   const [filter, setFilter] = useState<"all" | "material" | "labor">(initialFilter);
   const [items, setItems] = useState<CatalogItem[]>([]);
@@ -119,6 +122,12 @@ function CatalogInner() {
   };
 
   const remove = async (id: string) => {
+    const item = items.find((i) => i.id === id);
+    const ok = await confirm({
+      title: "Usunąć pozycję z katalogu?",
+      message: `${item?.label ? `„${item.label}”` : "Pozycja"} zniknie z katalogu. Oferty i szablony, w które została już wstawiona, się nie zmienią.`
+    });
+    if (!ok) return;
     if (editingId === id) cancelEdit();
     const { error } = await supabase.from("catalog_items").delete().eq("id", id);
     if (error) {
@@ -136,6 +145,7 @@ function CatalogInner() {
   return (
     <div className="grid max-w-3xl gap-6">
       <div>
+        <BackLink href="/settings/dictionaries" className="mb-2">Słowniki</BackLink>
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-steel">Ustawienia</p>
         <h1 className="mt-2 text-2xl font-bold text-ink">Baza pozycji kosztorysowych</h1>
         <p className="mt-2 text-sm text-steel">
@@ -319,6 +329,7 @@ function CatalogInner() {
           })}
         </ul>
       </section>
+      {confirmDialog}
     </div>
   );
 }

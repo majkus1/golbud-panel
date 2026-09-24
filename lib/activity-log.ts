@@ -42,7 +42,7 @@ export const ACTIVITY_FILTER_OPTIONS: { value: "all" | ActivityCategory; label: 
   { value: "sprzet", label: "Sprzęt / rusztowania" },
   { value: "czas", label: "Czas pracy" },
   { value: "przypisanie", label: "Przypisania osób" },
-  { value: "prace_dodatkowe", label: "Prace dodatkowe" },
+  { value: "prace_dodatkowe", label: "Roboty dodatkowe" },
   { value: "zadanie", label: "Zadania" },
   { value: "rozliczenia", label: "Rozliczenia pracowników" },
   { value: "rentownosc", label: "Rentowność i koszty" },

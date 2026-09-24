@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
+import { BackLink } from "@/components/ui";
 import { AuthGate } from "@/components/auth-gate";
 import { showToast } from "@/components/toast";
+import { useConfirm } from "@/components/use-confirm";
 import { canManageOrg, useOrg } from "@/components/org-context";
 import { formatMoney } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
@@ -25,6 +27,7 @@ export default function EstimateTemplatesSettingsPage() {
 function EstimateTemplatesInner() {
   const { organizationId, role, userId } = useOrg();
   const canUse = canManageOrg(role) || role === "sales";
+  const { confirm, confirmDialog } = useConfirm();
   const [templates, setTemplates] = useState<EstimateTemplate[]>([]);
   const [linesByTemplate, setLinesByTemplate] = useState<Record<string, EstimateTemplateLine[]>>({});
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
@@ -91,7 +94,12 @@ function EstimateTemplatesInner() {
   };
 
   const removeTemplate = async (id: string) => {
-    if (!confirm("Usunąć ten szablon wraz ze wszystkimi jego pozycjami?")) return;
+    const template = templates.find((t) => t.id === id);
+    const ok = await confirm({
+      title: "Usunąć szablon?",
+      message: `${template?.name ? `Szablon „${template.name}”` : "Szablon"} zostanie usunięty razem ze wszystkimi pozycjami. Oferty w istniejących sprawach się nie zmienią.`
+    });
+    if (!ok) return;
     const { error } = await supabase.from("estimate_templates").delete().eq("id", id);
     if (error) { showToast("Nie udało się usunąć szablonu", "error"); return; }
     showToast("Usunięto szablon");
@@ -138,6 +146,12 @@ function EstimateTemplatesInner() {
   };
 
   const deleteLine = async (id: string) => {
+    const line = Object.values(linesByTemplate).flat().find((l) => l.id === id);
+    const ok = await confirm({
+      title: "Usunąć pozycję szablonu?",
+      message: `${line?.label ? `„${line.label}”` : "Pozycja"} zniknie z szablonu. Oferty w istniejących sprawach się nie zmienią.`
+    });
+    if (!ok) return;
     const { error } = await supabase.from("estimate_template_lines").delete().eq("id", id);
     if (error) { showToast("Nie udało się usunąć pozycji", "error"); return; }
     await load();
@@ -156,6 +170,7 @@ function EstimateTemplatesInner() {
   return (
     <div className="grid min-w-0 gap-6">
       <div>
+        <BackLink href="/settings/dictionaries" className="mb-2">Słowniki</BackLink>
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-steel">Słowniki</p>
         <h1 className="mt-2 text-2xl font-bold text-ink">Warianty kosztorysów (szablony)</h1>
         <p className="mt-2 max-w-2xl text-sm text-steel">
@@ -354,6 +369,7 @@ function EstimateTemplatesInner() {
           </section>
         )}
       </div>
+      {confirmDialog}
     </div>
   );
 }
