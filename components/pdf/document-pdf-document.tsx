@@ -258,15 +258,85 @@ export function DocumentPdfDocument({ logoPath, title, docNumber, docDate, selle
           </View>
         ) : null}
 
-        {blocks.map((block, i) => (
-          <BlockView key={`b-${i}`} block={block} index={i} />
-        ))}
-
-        {showEndSignatures ? <Signatures labels={signatures} /> : null}
+        {groupWithSignatures(blocks, showEndSignatures).map((group, g) =>
+          group.keep ? (
+            <View key={`g-${g}`} wrap={false}>
+              {group.items.map(({ block, index }) => (
+                <BlockView key={`b-${index}`} block={block} index={index} />
+              ))}
+              {group.endSignatures ? <Signatures labels={signatures} /> : null}
+            </View>
+          ) : (
+            group.items.map(({ block, index }) => <BlockView key={`b-${index}`} block={block} index={index} />)
+          )
+        )}
         <PageNumber />
       </Page>
     </Document>
   );
+}
+
+type BlockGroup = { keep: boolean; endSignatures: boolean; items: { block: Block; index: number }[] };
+
+/** Ile tekstu (znaków) może przejść razem z podpisami na następną stronę. */
+const KEEP_WITH_SIGNATURES_CHARS = 700;
+
+function blockLength(block: Block): number {
+  if ("runs" in block) return runsToText(block.runs).length;
+  if (block.type === "section") return block.label.length + block.title.length + 40;
+  if (block.type === "table") return 400;
+  return 20;
+}
+
+/**
+ * Podpisy nie mogą zostać same na pustej stronie. Ostatni akapit (albo cały krótki ostatni
+ * paragraf „§”) trzymamy razem z miejscami na podpisy — gdy nie mieszczą się na stronie,
+ * przechodzą na następną razem. To samo dla podpisów w środku treści (`[podpisy: …]`).
+ */
+function groupWithSignatures(blocks: Block[], endSignatures: boolean): BlockGroup[] {
+  const indexed = blocks.map((block, index) => ({ block, index }));
+  const groups: BlockGroup[] = [];
+  let current: BlockGroup = { keep: false, endSignatures: false, items: [] };
+  const flush = () => {
+    if (current.items.length) groups.push(current);
+    current = { keep: false, endSignatures: false, items: [] };
+  };
+
+  // Podpisy w treści: z poprzednim blokiem treści.
+  for (const item of indexed) {
+    if (item.block.type === "signatures") {
+      let prev = current.items.pop();
+      while (prev && prev.block.type === "spacer") prev = current.items.pop();
+      flush();
+      groups.push({ keep: true, endSignatures: false, items: prev ? [prev, item] : [item] });
+      continue;
+    }
+    current.items.push(item);
+  }
+  flush();
+
+  if (!endSignatures) return groups;
+
+  // Podpisy na końcu: z ostatnim krótkim paragrafem albo przynajmniej z ostatnim akapitem.
+  const last = groups[groups.length - 1];
+  if (!last || last.keep) {
+    groups.push({ keep: true, endSignatures: true, items: [] });
+    return groups;
+  }
+  const tail: { block: Block; index: number }[] = [];
+  let length = 0;
+  while (last.items.length) {
+    const item = last.items[last.items.length - 1];
+    const next = length + blockLength(item.block);
+    if (tail.length > 0 && next > KEEP_WITH_SIGNATURES_CHARS) break;
+    tail.unshift(item);
+    last.items.pop();
+    length = next;
+    if (item.block.type === "section") break;
+  }
+  if (!last.items.length) groups.pop();
+  groups.push({ keep: true, endSignatures: true, items: tail });
+  return groups;
 }
 
 function shortFooter(seller: OfferSellerProfile): string {

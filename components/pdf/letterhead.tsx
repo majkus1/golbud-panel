@@ -29,8 +29,9 @@ const styles = StyleSheet.create({
   companyLine: { fontSize: 7.5, color: C.muted, textAlign: "right", lineHeight: 1.35 },
   footerRule: { position: "absolute", bottom: 34, left: 40, right: 40, borderTopWidth: 0.5, borderTopColor: C.line },
   footerLeft: { position: "absolute", bottom: 22, left: 40, right: 140, fontSize: 7, color: C.muted },
-  // Pełna szerokość i wyrównanie do prawej — w tym układzie react-pdf wywołuje `render` na każdej stronie.
-  footerRight: { position: "absolute", bottom: 22, left: 40, right: 40, fontSize: 7, color: C.muted, textAlign: "right" },
+  // Od góry, nie od dołu: dla tekstu z `render` react-pdf liczy `bottom` od wysokości całej
+  // treści i numer lądował kilka tysięcy punktów pod stroną. A4 ma 841,89 pt wysokości.
+  footerRight: { position: "absolute", top: 841.89 - 22 - 12, left: 40, right: 40, fontSize: 7, color: C.muted, textAlign: "right" },
 });
 
 export function Letterhead({ seller, logoPath }: { seller: OfferSellerProfile; logoPath: string | null }) {
@@ -84,9 +85,7 @@ export function DocFooter({ text }: { text?: string | null }) {
 }
 
 /**
- * Numer strony — osobno i jako ostatni element strony. Wstawiony przed treścią (razem z resztą
- * stopki) nie był rysowany: react-pdf wywołuje `render` dla elementów stałych dopiero po
- * rozłożeniu treści, która stoi przed nimi.
+ * Numer strony („Strona 2 z 7”) — osobny element na końcu strony, pozycjonowany od góry.
  */
 export function PageNumber() {
   return <RawText style={styles.footerRight} fixed render={({ pageNumber, totalPages }) => `Strona ${pageNumber} z ${totalPages}`} />;
