@@ -68,6 +68,22 @@ export type TaskDigestRow = {
   assignee_emails: string[];
 };
 
+/** Wpis z kalendarza firmy na dziś (`case_tasks.kind = 'wpis'`). */
+export type CalendarEntryDigestRow = {
+  id: string;
+  organization_id: string;
+  case_id: string | null;
+  title: string;
+  due_date: string;
+  /** „HH:MM” albo null, gdy wpis jest na cały dzień. */
+  due_time: string | null;
+  priority: string;
+  note: string | null;
+  client_name: string | null;
+  created_by: string | null;
+  assignee_ids: string[];
+};
+
 export type FleetDigestRow = {
   id: string;
   organization_id: string;
@@ -154,6 +170,7 @@ export type DigestSendParams = {
   overdueSchedule: ScheduleDigestRow[];
   overduePayments: PaymentDigestRow[];
   overdueTasks: TaskDigestRow[];
+  calendarEntries: CalendarEntryDigestRow[];
   fleetAlerts: FleetDigestRow[];
   lowStockItems: WarehouseDigestRow[];
   upcomingPayments: PaymentDigestRow[];
@@ -190,10 +207,10 @@ function parseRecipients(raw: string | undefined): string[] {
 
 // ── HTML builder ───────────────────────────────────────────────────────────────
 
-function htmlRow(href: string, lines: string[]): string {
+function htmlRow(href: string, lines: string[], linkLabel = "Otwórz sprawę"): string {
   return `<div style="margin-bottom:6px;padding:10px 12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;line-height:1.6;">
   ${lines.map((l) => `<div style="color:#1f2937;">${l}</div>`).join("\n  ")}
-  <div style="margin-top:6px;"><a href="${href}" style="color:#166534;font-weight:600;font-size:12px;text-decoration:none;">&#8594; Otwórz sprawę</a></div>
+  <div style="margin-top:6px;"><a href="${href}" style="color:#166534;font-weight:600;font-size:12px;text-decoration:none;">&#8594; ${escapeHtml(linkLabel)}</a></div>
 </div>`;
 }
 
@@ -209,7 +226,7 @@ function countItems(params: DigestSendParams): number {
     + (params.includeOverdueContact ? params.overdueContacts.length : 0)
     + (params.includeSchedule ? params.overdueSchedule.length : 0)
     + (params.includePayments ? params.overduePayments.length : 0)
-    + (params.includeTasks ? params.overdueTasks.length : 0)
+    + (params.includeTasks ? params.overdueTasks.length + params.calendarEntries.length : 0)
     + (params.includeFleet ? params.fleetAlerts.length : 0)
     + (params.includeWarehouse ? params.lowStockItems.length : 0)
     + (params.includePayments ? params.upcomingPayments.length : 0)
@@ -224,6 +241,21 @@ export function buildReminderDigestHtml(params: DigestSendParams): string {
   const { todayLabel, baseUrl } = params;
   const b = baseUrl.replace(/\/$/, "");
   const sections: string[] = [];
+
+  // Wpisy z kalendarza na dziś idą na samą górę — to plan dnia, nie zaległości.
+  if (params.includeTasks && params.calendarEntries.length > 0) {
+    sections.push(htmlSection("#ecfdf5", "#059669", "&#128197;", `Dziś w kalendarzu (${params.calendarEntries.length})`,
+      params.calendarEntries.map((e) => htmlRow(
+        e.case_id ? `${b}/cases/${e.case_id}` : `${b}/calendar`,
+        [
+          `${e.due_time ? `<strong>${escapeHtml(e.due_time)}</strong> ` : ""}<strong>${escapeHtml(e.title)}</strong>${e.priority === "pilne" ? ' <span style="color:#dc2626;font-weight:700;">(pilne)</span>' : e.priority === "wysoki" ? ' <span style="color:#b45309;font-weight:700;">(ważne)</span>' : ""}`,
+          e.client_name ? escapeHtml(e.client_name) : "",
+          e.note ? escapeHtml(e.note) : ""
+        ].filter(Boolean),
+        e.case_id ? "Otwórz sprawę" : "Otwórz kalendarz"
+      ))
+    ));
+  }
 
   if (params.includeReminders && params.reminders.length > 0) {
     sections.push(htmlSection("#fef9c3", "#ca8a04", "&#9200;", `Przypomnienia (${params.reminders.length})`,
@@ -427,6 +459,16 @@ export function buildReminderDigestText(params: DigestSendParams): string {
   const b = baseUrl.replace(/\/$/, "");
   const parts: string[] = [`GolBud Panel — zestawienie na ${todayLabel}`, ""];
 
+  if (params.includeTasks && params.calendarEntries.length > 0) {
+    parts.push(`DZIS W KALENDARZU (${params.calendarEntries.length})`);
+    for (const e of params.calendarEntries) {
+      const flag = e.priority === "pilne" ? " (pilne)" : e.priority === "wysoki" ? " (ważne)" : "";
+      parts.push(`• ${e.due_time ? `${e.due_time} ` : ""}${e.title}${flag}${e.client_name ? ` · ${e.client_name}` : ""}${e.note ? ` — ${e.note}` : ""}`);
+      parts.push(`  ${e.case_id ? `${b}/cases/${e.case_id}` : `${b}/calendar`}`);
+    }
+    parts.push("");
+  }
+
   if (params.includeReminders && params.reminders.length > 0) {
     parts.push(`PRZYPOMNIENIA (${params.reminders.length})`);
     for (const r of params.reminders) {
@@ -607,6 +649,7 @@ export async function sendReminderDigestEmailLegacy(params: {
   overdueSchedule: ScheduleDigestRow[];
   overduePayments: PaymentDigestRow[];
   overdueTasks: TaskDigestRow[];
+  calendarEntries?: CalendarEntryDigestRow[];
   fleetAlerts?: FleetDigestRow[];
   lowStockItems?: WarehouseDigestRow[];
   upcomingPayments?: PaymentDigestRow[];
@@ -625,6 +668,7 @@ export async function sendReminderDigestEmailLegacy(params: {
 
   const fullParams: DigestSendParams = {
     ...params,
+    calendarEntries: params.calendarEntries ?? [],
     fleetAlerts: params.fleetAlerts ?? [],
     lowStockItems: params.lowStockItems ?? [],
     upcomingPayments: params.upcomingPayments ?? [],

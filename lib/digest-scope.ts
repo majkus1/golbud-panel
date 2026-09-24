@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { canSeeAllCasesInOrg } from "@/lib/notification-prefs";
 import type { MemberRole } from "@/lib/types";
 import type {
+  CalendarEntryDigestRow,
   OverdueContactRow,
   PaymentDigestRow,
   ProfitabilityDigestRow,
@@ -70,6 +71,15 @@ export function scopeTasks(rows: TaskDigestRow[], userEmail: string, scope: Set<
     out = out.filter((t) => t.assignee_emails.length === 0 || t.assignee_emails.includes(userEmail));
   }
   return out;
+}
+
+/**
+ * Wpisy z kalendarza — jak RLS na `case_tasks`: właściciel, biuro i kierownik widzą
+ * wszystkie, pozostali tylko swoje (autor) i przypisane do siebie.
+ */
+export function scopeCalendarEntries(rows: CalendarEntryDigestRow[], userId: string, scope: Set<string> | null): CalendarEntryDigestRow[] {
+  if (scope === null) return rows;
+  return rows.filter((e) => e.created_by === userId || e.assignee_ids.includes(userId));
 }
 
 export function scopeSupplierInvoices(rows: SupplierInvoiceDigestRow[], scope: Set<string> | null): SupplierInvoiceDigestRow[] {

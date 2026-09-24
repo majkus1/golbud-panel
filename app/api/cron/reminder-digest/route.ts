@@ -19,8 +19,10 @@ import {
 import { buildProfitabilitySummary } from "@/lib/profitability-report";
 import { daysUntil, fleetDocLabel, isLowStock, type FleetDocKind } from "@/lib/ops-alerts";
 import { warsawTodayIso } from "@/lib/warsaw-today";
+import { loadDigestCalendarEntries } from "@/lib/digest-calendar-entries";
 import {
   fetchAccessibleCaseIds,
+  scopeCalendarEntries,
   scopeOverdueContacts,
   scopePayments,
   scopeProfitabilityAlerts,
@@ -445,6 +447,8 @@ export async function GET(request: Request) {
     .not("case_id", "is", null)
     .not("due_date", "is", null)
     .lte("due_date", today)
+    // Wpisy z kalendarza mają własną sekcję „Dziś w kalendarzu” (niżej).
+    .eq("kind", "zadanie")
     .in("status", ["do zrobienia", "w toku"]);
 
   if (tErr) {
@@ -498,6 +502,13 @@ export async function GET(request: Request) {
       };
     })
     .filter(Boolean) as TaskDigestRow[];
+
+  // ── 5b. Wpisy z kalendarza na dziś ──────────────────────────────────────
+  const { entries: calendarEntries, error: eErr } = await loadDigestCalendarEntries(supabase, today);
+  if (eErr) {
+    console.error("[digest] calendar entries", eErr);
+    return NextResponse.json({ error: eErr }, { status: 500 });
+  }
 
   // ── 6. Flota i polisy — dokumenty w ciągu 30 dni lub po terminie ──────────
   const { data: vehicleRows, error: vErr } = await supabase
@@ -838,6 +849,7 @@ export async function GET(request: Request) {
     overduePayments: overduePayments.length,
     upcomingPayments: upcomingPayments.length,
     overdueTasks: overdueTasks.length,
+    calendarEntries: calendarEntries.length,
     fleetAlerts: fleetAlerts.length,
     lowStock: lowStockItems.length,
     overdueCostInvoices: overdueCostInvoices.length,
@@ -873,6 +885,7 @@ export async function GET(request: Request) {
       const orgPayments = overduePayments.filter((x) => x.organization_id === org);
       const orgUpcomingPayments = upcomingPayments.filter((x) => x.organization_id === org);
       const orgTasks = overdueTasks.filter((x) => x.organization_id === org);
+      const orgEntries = calendarEntries.filter((x) => x.organization_id === org);
       const orgFleet = fleetAlerts.filter((x) => x.organization_id === org);
       const orgStock = lowStockItems.filter((x) => x.organization_id === org);
       const orgOverdueCostInvoices = overdueCostInvoices.filter((x) => x.organization_id === org);
@@ -891,6 +904,7 @@ export async function GET(request: Request) {
           overdueSchedule: scopeSchedule(orgSchedule, caseScope),
           overduePayments: scopePayments(orgPayments, caseScope),
           overdueTasks: scopeTasks(orgTasks, email, caseScope),
+          calendarEntries: scopeCalendarEntries(orgEntries, pref.user_id, caseScope),
           fleetAlerts: orgFleet,
           lowStockItems: orgStock,
           upcomingPayments: scopePayments(orgUpcomingPayments, caseScope),
@@ -963,6 +977,7 @@ export async function GET(request: Request) {
       overdueSchedule,
       overduePayments,
       overdueTasks,
+      calendarEntries,
       fleetAlerts,
       lowStockItems,
       upcomingPayments,

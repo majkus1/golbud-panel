@@ -100,6 +100,8 @@ export function TasksPanel({ caseId, filterPreset, initialTaskId, openDiscussion
       .from("case_tasks")
       .select("*")
       .eq("organization_id", organizationId)
+      // Wpisy z kalendarza to terminy, nie praca dla pracowników — mają własne miejsce w Kalendarzu.
+      .eq("kind", "zadanie")
       .order("status", { ascending: true })
       .order("due_date", { ascending: true, nullsFirst: false });
     if (caseId) q = q.eq("case_id", caseId);

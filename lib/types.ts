@@ -754,12 +754,18 @@ export type CaseTask = {
   description: string | null;
   assignee_id: string | null;
   due_date: string | null;
+  /** Godzina z kalendarza („HH:MM:SS”), tylko przy wpisach — zadania jej nie mają. */
+  due_time?: string | null;
   priority: TaskPriority;
   status: TaskStatus;
+  /** „zadanie” — praca dla pracownika; „wpis” — termin w kalendarzu (nie ma go na liście zadań). */
+  kind?: TaskKind;
   created_by: string | null;
   completed_at: string | null;
   created_at: string;
 };
+
+export type TaskKind = "zadanie" | "wpis";
 
 export type CaseTaskComment = {
   id: string;

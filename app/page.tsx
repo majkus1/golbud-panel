@@ -6,14 +6,16 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { AuthGate } from "@/components/auth-gate";
+import { CompanyCalendar } from "@/components/calendar/company-calendar";
 import { isFieldRole, useOrg } from "@/components/org-context";
 import { StatusBadge } from "@/components/status-badge";
+import { buildAssigneesMaps, loadOrganizationMemberDirectory, memberDisplayName } from "@/lib/case-leads";
 import { CASE_LIST_PRESET, isCaseRealizationOverdue } from "@/lib/case-list-presets";
 import { formatDate, formatMoney, isDue } from "@/lib/format";
 
 import { warsawTodayIso } from "@/lib/warsaw-today";
 import { supabase } from "@/lib/supabase";
-import type { CaseRow, CaseTask } from "@/lib/types";
+import type { CaseAssignee, CaseRow, CaseTask, OrgMemberProfile } from "@/lib/types";
 
 const terminal = new Set(["rozliczone", "utracone"]);
 
@@ -22,9 +24,11 @@ function dashboardTaskHref(task: CaseTask): string {
   return "/tasks";
 }
 
-function ContactReminderCard({ caseRow }: { caseRow: CaseRow }) {
+/** Pozycja listy „Kontakty do wykonania”: klient, miejscowość, termin i osoba prowadząca. */
+function ContactReminderCard({ caseRow, leadName, today }: { caseRow: CaseRow; leadName: string | null; today: string }) {
   const hasPhone = !!caseRow.phone?.trim();
   const hasEmail = !!caseRow.email?.trim();
+  const overdue = !!caseRow.next_contact_date && caseRow.next_contact_date < today;
 
   return (
     <div className="overflow-hidden rounded-xl2 border border-stone-200 transition hover:border-moss/50 hover:shadow-sm">
@@ -33,10 +37,19 @@ function ContactReminderCard({ caseRow }: { caseRow: CaseRow }) {
         className="block p-3.5 pb-2.5 transition hover:bg-stone-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         <div className="flex items-start justify-between gap-3">
-          <p className="min-w-0 font-semibold text-ink">{caseRow.client_name}</p>
+          <div className="min-w-0">
+            <p className="font-semibold text-ink">{caseRow.client_name}</p>
+            <p className="text-xs text-steel">{caseRow.location || "brak miejscowości"}</p>
+          </div>
           <StatusBadge status={caseRow.status} />
         </div>
-        <p className="mt-1.5 text-sm text-steel">Kontakt: {formatDate(caseRow.next_contact_date)}</p>
+        <p className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-steel">
+          <span className={overdue ? "font-semibold text-red-700" : "font-semibold text-amber-800"}>
+            {overdue ? "Po terminie: " : "Dziś: "}
+            {formatDate(caseRow.next_contact_date)}
+          </span>
+          <span>Prowadzi: {leadName || "nie przypisano"}</span>
+        </p>
       </Link>
       {(hasPhone || hasEmail) && (
         <div className="flex flex-wrap gap-2 border-t border-stone-100 bg-stone-50/40 px-3.5 py-2.5">
@@ -114,6 +127,8 @@ function Dashboard() {
   const { organizationId, role } = useOrg();
   const [cases, setCases] = useState<CaseRow[]>([]);
   const [tasks, setTasks] = useState<CaseTask[]>([]);
+  const [leadsByCase, setLeadsByCase] = useState<Record<string, string[]>>({});
+  const [members, setMembers] = useState<OrgMemberProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const today = warsawTodayIso();
 
@@ -128,14 +143,27 @@ function Dashboard() {
         .from("case_tasks")
         .select("*")
         .eq("organization_id", organizationId)
+        .eq("kind", "zadanie")
         .in("status", ["do zrobienia", "w toku"])
         .order("due_date", { ascending: true, nullsFirst: false })
         .limit(50)
     ]);
-    setCases((data || []) as CaseRow[]);
+    const loadedCases = (data || []) as CaseRow[];
+    setCases(loadedCases);
     // Zadania ze spraw w koszu nie wiszą na pulpicie.
     setTasks(dropTrashedCaseRows((t || []) as CaseTask[], await loadTrashedCaseIds(supabase, organizationId)));
     setLoading(false);
+
+    // Osoby prowadzące — tylko dla spraw z listy „Kontakty do wykonania”.
+    const contactIds = loadedCases.filter((c) => isDue(c.next_contact_date) && !terminal.has(c.status)).map((c) => c.id);
+    if (contactIds.length > 0) {
+      const [{ data: assignees }, directory] = await Promise.all([
+        supabase.from("case_assignees").select("case_id, user_id, assignment_role").in("case_id", contactIds),
+        loadOrganizationMemberDirectory(supabase, organizationId)
+      ]);
+      setLeadsByCase(buildAssigneesMaps((assignees || []) as CaseAssignee[]).leads);
+      setMembers(directory);
+    }
   };
 
   useEffect(() => {
@@ -182,10 +210,19 @@ function Dashboard() {
     [cases, tasks]
   );
 
-  const contactDue = useMemo(
-    () => cases.filter((c) => isDue(c.next_contact_date) && !terminal.has(c.status)).slice(0, 5),
+  const contactDueAll = useMemo(
+    () =>
+      cases
+        .filter((c) => isDue(c.next_contact_date) && !terminal.has(c.status))
+        .sort((a, b) => (a.next_contact_date || "").localeCompare(b.next_contact_date || "")),
     [cases]
   );
+  const contactDue = contactDueAll.slice(0, 6);
+  const leadName = (caseId: string) => {
+    const ids = leadsByCase[caseId] || [];
+    if (ids.length === 0) return null;
+    return ids.map((id) => memberDisplayName(members.find((m) => m.user_id === id), id)).join(", ");
+  };
 
   const myTodayTasks = useMemo(
     () =>
@@ -264,6 +301,8 @@ function Dashboard() {
             </ul>
           </section>
         )}
+
+        <CompanyCalendar variant="dashboard" />
       </div>
     );
   }
@@ -271,10 +310,8 @@ function Dashboard() {
   return (
     <div className="grid min-w-0 gap-6">
       <div className="grid min-w-0 gap-3 sm:flex sm:items-end sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-steel">Panel operacyjny</p>
-          <h1 className="mt-2 max-w-full text-2xl font-bold leading-tight text-ink sm:text-3xl">Zlecenia, oferty i realizacje</h1>
-        </div>
+        {/* Sam nagłówek, bez podpisu — Dawid prosił o wyraźny „Panel” z dużych liter. */}
+        <h1 className="min-w-0 text-2xl font-bold uppercase leading-tight tracking-[0.08em] text-ink sm:text-3xl">Panel operacyjny</h1>
         <div className="grid gap-2 sm:flex">
           <Link
             href="/cases/new"
@@ -316,23 +353,8 @@ function Dashboard() {
         })}
       </section>
 
-      <section className="grid min-w-0 grid-cols-2 gap-2.5 sm:flex sm:flex-wrap sm:gap-3">
-        {[
-          { href: "/board", label: "Etapy obsługi" },
-          { href: "/tasks", label: "Zadania pracowników" },
-          { href: "/calendar", label: "Kalendarz" },
-          { href: "/reports", label: "Raporty + eksport" }
-          // Samochody i magazyn zostają w menu bocznym, w grupie „Zarządzanie firmą".
-        ].map((q) => (
-          <Link
-            key={q.href}
-            href={q.href}
-            className="rounded-xl2 border border-stone-200/80 bg-white px-4 py-3 text-center text-sm font-semibold text-ink shadow-card transition hover:border-moss/50 hover:bg-stone-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:text-left"
-          >
-            {q.label}
-          </Link>
-        ))}
-      </section>
+      {/* W miejscu szybkich linków (dublowały menu) — kalendarz z wpisami i terminami. */}
+      <CompanyCalendar variant="dashboard" />
 
       {myTodayTasks.length > 0 && (
         <section className="rounded-xl2 border border-stone-200/80 bg-white p-4 shadow-card sm:p-5">
@@ -352,12 +374,19 @@ function Dashboard() {
 
       <section className="grid min-w-0 gap-4 xl:grid-cols-[0.95fr_1.35fr] xl:gap-6">
         <div className="min-w-0 rounded-xl2 border border-stone-200/80 bg-white p-4 shadow-card sm:p-5">
-          <h2 className="text-base font-bold text-ink sm:text-lg">Do przypomnienia (kontakt)</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base font-bold text-ink sm:text-lg">Kontakty do wykonania{contactDueAll.length > 0 ? ` (${contactDueAll.length})` : ""}</h2>
+            {contactDueAll.length > contactDue.length && (
+              <Link href={`/cases?preset=${CASE_LIST_PRESET.kontaktPoTerminie}`} className="rounded-lg px-2.5 py-1.5 text-sm font-semibold text-moss hover:bg-moss/10">
+                Wszystkie →
+              </Link>
+            )}
+          </div>
           <div className="mt-4 grid gap-2.5">
             {contactDue.length === 0 ? (
-              <p className="rounded-xl2 border border-dashed border-stone-200 p-4 text-center text-sm text-steel">Brak spraw z przeterminowanym kontaktem.</p>
+              <p className="rounded-xl2 border border-dashed border-stone-200 p-4 text-center text-sm text-steel">Brak kontaktów na dziś i zaległych.</p>
             ) : (
-              contactDue.map((c) => <ContactReminderCard key={c.id} caseRow={c} />)
+              contactDue.map((c) => <ContactReminderCard key={c.id} caseRow={c} leadName={leadName(c.id)} today={today} />)
             )}
           </div>
         </div>
