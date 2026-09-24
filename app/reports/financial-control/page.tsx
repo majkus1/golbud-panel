@@ -1,5 +1,6 @@
 "use client";
 
+import { dropTrashedCaseRows, loadTrashedCaseIds } from "@/lib/active-cases";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/ui";
@@ -150,7 +151,8 @@ function FinancialControlInner({ userId }: { userId: string }) {
     }
 
     setCases((caseRes.data || []) as CaseRow[]);
-    setPayments((paymentRes.data || []) as Payment[]);
+    // Płatności spraw z kosza nie wchodzą do rejestru należności.
+    setPayments(dropTrashedCaseRows((paymentRes.data || []) as Payment[], await loadTrashedCaseIds(supabase, organizationId)));
     setItems((itemRes.data || []) as FinancialControlItem[]);
     setCrews((crewRes.data || []) as Crew[]);
     setLoading(false);

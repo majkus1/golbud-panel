@@ -26,11 +26,13 @@ export async function fetchAccessibleCaseIds(
     .from("cases")
     .select("id")
     .eq("organization_id", organizationId)
-    .eq("created_by", userId);
+    .eq("created_by", userId)
+    .is("deleted_at", null);
   const { data: assigned } = await supabase
     .from("case_assignees")
     .select("case_id, cases!inner(organization_id)")
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .is("cases.deleted_at", null);
 
   const ids = new Set<string>();
   for (const r of created || []) ids.add(r.id as string);

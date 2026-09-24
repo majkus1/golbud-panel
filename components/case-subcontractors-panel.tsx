@@ -1,5 +1,6 @@
 "use client";
 
+import { useConfirm } from "@/components/use-confirm";
 import { DateInput } from "@/components/date-input";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -12,6 +13,7 @@ import type { CaseSubcontractor, Subcontractor, SubcontractorStatus, Unit } from
 type Props = { caseId: string };
 
 export function CaseSubcontractorsPanel({ caseId }: Props) {
+  const { confirm, confirmDialog } = useConfirm();
   const { organizationId } = useOrg();
   const [rows, setRows] = useState<CaseSubcontractor[]>([]);
   const [subs, setSubs] = useState<Subcontractor[]>([]);
@@ -64,7 +66,7 @@ export function CaseSubcontractorsPanel({ caseId }: Props) {
   };
 
   const remove = async (id: string) => {
-    if (!confirm("Usunąć przypisanie podwykonawcy?")) return;
+    if (!(await confirm({ title: "Usunąć przypisanie podwykonawcy?", message: "Podwykonawca zniknie z tej sprawy. Jego dane w słowniku zostają." }))) return;
     await supabase.from("case_subcontractors").delete().eq("id", id);
     await load();
   };
@@ -187,6 +189,7 @@ export function CaseSubcontractorsPanel({ caseId }: Props) {
           </table>
         </div>
       )}
+      {confirmDialog}
     </section>
   );
 }

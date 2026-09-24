@@ -1,5 +1,6 @@
 "use client";
 
+import { dropTrashedCaseRows, loadTrashedCaseIds } from "@/lib/active-cases";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -132,7 +133,8 @@ function Dashboard() {
         .limit(50)
     ]);
     setCases((data || []) as CaseRow[]);
-    setTasks((t || []) as CaseTask[]);
+    // Zadania ze spraw w koszu nie wiszą na pulpicie.
+    setTasks(dropTrashedCaseRows((t || []) as CaseTask[], await loadTrashedCaseIds(supabase, organizationId)));
     setLoading(false);
   };
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { useConfirm } from "@/components/use-confirm";
+import { dropTrashedCaseRows, loadTrashedCaseIds } from "@/lib/active-cases";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DateInput } from "@/components/date-input";
@@ -38,6 +40,7 @@ const STATUS_TONE: Record<TaskStatus, string> = {
 };
 
 export function TasksPanel({ caseId, filterPreset, initialTaskId, openDiscussion }: Props) {
+  const { confirm, confirmDialog } = useConfirm();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { organizationId, userId } = useOrg();
@@ -106,10 +109,11 @@ export function TasksPanel({ caseId, filterPreset, initialTaskId, openDiscussion
       supabase.from("org_member_profiles").select("*").eq("organization_id", organizationId),
       caseId
         ? Promise.resolve({ data: [] as CaseRow[] })
-        : supabase.from("cases").select("id,client_name,location,status").eq("organization_id", organizationId).order("created_at", { ascending: false })
+        : supabase.from("cases").select("id,client_name,location,status").eq("organization_id", organizationId).is("deleted_at", null).order("created_at", { ascending: false })
     ]);
 
-    const loadedTasks = (t || []) as CaseTask[];
+    // W widoku całej firmy pomijamy zadania spraw z kosza (w karcie sprawy — i tak jej już nie widać).
+    const loadedTasks = caseId ? ((t || []) as CaseTask[]) : dropTrashedCaseRows((t || []) as CaseTask[], await loadTrashedCaseIds(supabase, organizationId));
     setTasks(loadedTasks);
     setMembers((m || []) as OrgMemberProfile[]);
     setCases((c || []) as CaseRow[]);
@@ -263,7 +267,7 @@ export function TasksPanel({ caseId, filterPreset, initialTaskId, openDiscussion
   };
 
   const remove = async (id: string) => {
-    if (!confirm("Usunąć zadanie?")) return;
+    if (!(await confirm({ title: "Usunąć zadanie?", message: "Zadanie zniknie razem z komentarzami i załącznikami." }))) return;
     await supabase.from("case_tasks").delete().eq("id", id);
     await load();
   };
@@ -681,6 +685,7 @@ export function TasksPanel({ caseId, filterPreset, initialTaskId, openDiscussion
           onRead={handleTaskRead}
         />
       )}
+      {confirmDialog}
     </div>
   );
 }

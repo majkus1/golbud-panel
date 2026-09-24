@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DateInput } from "@/components/date-input";
 import { showToast } from "@/components/toast";
+import { useConfirm } from "@/components/use-confirm";
 import { postAuthenticatedJson } from "@/lib/authed-fetch";
-import { currency, formatDate, parseAmount } from "@/lib/format";
+import { amountToInput, currency, formatDate, parseAmount } from "@/lib/format";
 import { notify } from "@/lib/notify-client";
 import { supabase } from "@/lib/supabase";
 import { warsawTodayIso } from "@/lib/warsaw-today";
@@ -72,6 +73,10 @@ export function CaseCostsSection({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  // Edycja korzysta z tych samych formularzy co dodawanie — id wskazuje poprawiany wpis.
+  const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
+  const [editingCostId, setEditingCostId] = useState<string | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
 
   const [invoiceForm, setInvoiceForm] = useState({
     supplier_name: "",
@@ -180,6 +185,39 @@ export function CaseCostsSection({
       return;
     }
     const paid = parseAmount(invoiceForm.paid_amount);
+    const fields = {
+      supplier_name: invoiceForm.supplier_name.trim(),
+      invoice_number: invoiceForm.invoice_number.trim() || null,
+      invoice_date: invoiceForm.invoice_date,
+      due_date: invoiceForm.due_date || null,
+      category: invoiceForm.category,
+      net_total: invoiceForm.net_total.trim() ? parseAmount(invoiceForm.net_total) : null,
+      gross_total: gross,
+      paid_amount: paid,
+      status: statusFromAmounts(gross, paid),
+      notes: invoiceForm.notes.trim() || null
+    };
+
+    if (editingInvoiceId) {
+      const previous = invoices.find((i) => i.id === editingInvoiceId);
+      const { error } = await supabase
+        .from("supplier_invoices")
+        .update(attachmentId ? { ...fields, attachment_id: attachmentId } : fields)
+        .eq("id", editingInvoiceId);
+      setSaving(false);
+      if (error) {
+        showToast(error.message, "error");
+        return;
+      }
+      // Nowy skan zastępuje stary — stary plik nie wisi bez przypisania.
+      if (attachmentId && previous?.attachment_id) await removeAttachment(previous.attachment_id);
+      showToast("Zapisano zmiany faktury");
+      cancelInvoiceEdit();
+      await load();
+      await onChange?.();
+      return;
+    }
+
     const { error } = await supabase.from("supplier_invoices").insert({
       organization_id: organizationId,
       case_id: caseId,
@@ -224,6 +262,27 @@ export function CaseCostsSection({
       showToast("Podaj nazwę kosztu i kwotę.", "error");
       return;
     }
+    if (editingCostId) {
+      const { error } = await supabase
+        .from("case_direct_costs")
+        .update({
+          cost_type: directForm.cost_type,
+          title: directForm.title.trim(),
+          amount,
+          cost_date: directForm.cost_date,
+          notes: directForm.notes.trim() || null
+        })
+        .eq("id", editingCostId);
+      if (error) {
+        showToast(error.message, "error");
+        return;
+      }
+      showToast("Zapisano zmiany kosztu");
+      cancelCostEdit();
+      await load();
+      await onChange?.();
+      return;
+    }
     const { error } = await supabase.from("case_direct_costs").insert({
       organization_id: organizationId,
       case_id: caseId,
@@ -251,6 +310,98 @@ export function CaseCostsSection({
     }
     setDirectForm((f) => ({ ...f, title: "", amount: "", notes: "" }));
     await load();
+  };
+
+  const emptyInvoiceForm = () => ({
+    supplier_name: "",
+    invoice_number: "",
+    invoice_date: warsawTodayIso(),
+    due_date: "",
+    category: "materialy" as SupplierInvoiceCategory,
+    net_total: "",
+    gross_total: "",
+    paid_amount: "",
+    notes: ""
+  });
+
+  const startInvoiceEdit = (invoice: SupplierInvoice) => {
+    setEditingInvoiceId(invoice.id);
+    setInvoiceFile(null);
+    setInvoiceForm({
+      supplier_name: invoice.supplier_name || "",
+      invoice_number: invoice.invoice_number || "",
+      invoice_date: invoice.invoice_date || warsawTodayIso(),
+      due_date: invoice.due_date || "",
+      category: invoice.category as SupplierInvoiceCategory,
+      net_total: invoice.net_total != null ? amountToInput(Number(invoice.net_total)) : "",
+      gross_total: amountToInput(Number(invoice.gross_total || 0)),
+      paid_amount: amountToInput(Number(invoice.paid_amount || 0)),
+      notes: invoice.notes || ""
+    });
+  };
+
+  const cancelInvoiceEdit = () => {
+    setEditingInvoiceId(null);
+    setInvoiceFile(null);
+    setInvoiceForm(emptyInvoiceForm());
+  };
+
+  const startCostEdit = (cost: CaseDirectCost) => {
+    setEditingCostId(cost.id);
+    setDirectForm({
+      cost_type: cost.cost_type,
+      title: cost.title,
+      amount: amountToInput(Number(cost.amount || 0)),
+      cost_date: cost.cost_date || warsawTodayIso(),
+      notes: cost.notes || ""
+    });
+  };
+
+  const cancelCostEdit = () => {
+    setEditingCostId(null);
+    setDirectForm({ cost_type: "inne", title: "", amount: "", cost_date: warsawTodayIso(), notes: "" });
+  };
+
+  /** Skan faktury: wpis w bazie, potem plik w Storage. */
+  const removeAttachment = async (attachmentId: string) => {
+    const a = attachmentById.get(attachmentId);
+    const { error } = await supabase.from("attachments").delete().eq("id", attachmentId);
+    if (!error && a?.storage_path) await supabase.storage.from("case-attachments").remove([a.storage_path]);
+  };
+
+  const removeInvoice = async (invoice: SupplierInvoice) => {
+    const ok = await confirm({
+      title: "Usunąć fakturę kosztową?",
+      message: `${invoice.supplier_name}${invoice.invoice_number ? ` ${invoice.invoice_number}` : ""} — ${currency.format(Number(invoice.gross_total || 0))} brutto.${invoice.attachment_id ? " Podpięty skan też zostanie usunięty." : ""} Koszt zniknie z rentowności sprawy.`
+    });
+    if (!ok) return;
+    const { error } = await supabase.from("supplier_invoices").delete().eq("id", invoice.id);
+    if (error) {
+      showToast("Nie udało się usunąć faktury", "error");
+      return;
+    }
+    if (invoice.attachment_id) await removeAttachment(invoice.attachment_id);
+    if (editingInvoiceId === invoice.id) cancelInvoiceEdit();
+    showToast("Usunięto fakturę kosztową");
+    await load();
+    await onChange?.();
+  };
+
+  const removeCost = async (cost: CaseDirectCost) => {
+    const ok = await confirm({
+      title: "Usunąć koszt?",
+      message: `„${cost.title}” — ${currency.format(Number(cost.amount || 0))}. Koszt zniknie z rentowności sprawy.`
+    });
+    if (!ok) return;
+    const { error } = await supabase.from("case_direct_costs").delete().eq("id", cost.id);
+    if (error) {
+      showToast("Nie udało się usunąć kosztu", "error");
+      return;
+    }
+    if (editingCostId === cost.id) cancelCostEdit();
+    showToast("Usunięto koszt");
+    await load();
+    await onChange?.();
   };
 
   const sendToAccountant = async (invoice: SupplierInvoice) => {
@@ -300,7 +451,10 @@ export function CaseCostsSection({
 
       <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(320px,440px)_minmax(0,1fr)]">
         <div className="grid min-w-0 gap-4">
-          <Panel title="Dodaj fakturę kosztową" hint="Hurtownia, transport, sprzęt, usługa lub faktura podwykonawcy. Opcjonalnie dodaj PDF/skan.">
+          <Panel
+            title={editingInvoiceId ? "Popraw fakturę kosztową" : "Dodaj fakturę kosztową"}
+            hint={editingInvoiceId ? "Zmieniasz zapisaną fakturę. Nowy skan zastąpi poprzedni." : "Hurtownia, transport, sprzęt, usługa lub faktura podwykonawcy. Opcjonalnie dodaj PDF/skan."}
+          >
             <input className="input text-sm" placeholder="Hurtownia / dostawca" value={invoiceForm.supplier_name} onChange={(e) => setInvoiceForm((f) => ({ ...f, supplier_name: e.target.value }))} />
             <div className="grid gap-2 sm:grid-cols-2">
               <input className="input text-sm" placeholder="Numer faktury" value={invoiceForm.invoice_number} onChange={(e) => setInvoiceForm((f) => ({ ...f, invoice_number: e.target.value }))} />
@@ -328,12 +482,22 @@ export function CaseCostsSection({
               {invoiceFile ? <span className="font-normal text-steel">{invoiceFile.name}</span> : null}
             </label>
             <textarea className="input min-h-[70px] text-sm" placeholder="Uwagi dla firmy / księgowości" value={invoiceForm.notes} onChange={(e) => setInvoiceForm((f) => ({ ...f, notes: e.target.value }))} />
-            <button type="button" onClick={() => void saveInvoice()} disabled={saving} className="rounded-lg bg-ink px-4 py-2.5 text-sm font-semibold text-white hover:bg-moss disabled:opacity-60">
-              {saving ? "Zapisywanie..." : "Dodaj fakturę"}
-            </button>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => void saveInvoice()} disabled={saving} className="flex-1 rounded-lg bg-ink px-4 py-2.5 text-sm font-semibold text-white hover:bg-moss disabled:opacity-60">
+                {saving ? "Zapisywanie..." : editingInvoiceId ? "Zapisz zmiany" : "Dodaj fakturę"}
+              </button>
+              {editingInvoiceId && (
+                <button type="button" onClick={cancelInvoiceEdit} className="rounded-lg border border-stone-300 px-4 py-2.5 text-sm font-semibold text-ink hover:bg-stone-50">
+                  Anuluj
+                </button>
+              )}
+            </div>
           </Panel>
 
-          <Panel title="Koszt bez faktury" hint="Paliwo, wynajem, transport, drobne zakupy lub inny koszt, który ma wejść do rentowności.">
+          <Panel
+            title={editingCostId ? "Popraw koszt bez faktury" : "Koszt bez faktury"}
+            hint="Paliwo, wynajem, transport, drobne zakupy lub inny koszt, który ma wejść do rentowności."
+          >
             <div className="grid gap-2 sm:grid-cols-2">
               <select className="input text-sm" value={directForm.cost_type} onChange={(e) => setDirectForm((f) => ({ ...f, cost_type: e.target.value as CaseDirectCostType }))}>
                 {DIRECT_COST_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
@@ -343,9 +507,16 @@ export function CaseCostsSection({
             <input className="input text-sm" placeholder="Nazwa kosztu" value={directForm.title} onChange={(e) => setDirectForm((f) => ({ ...f, title: e.target.value }))} />
             <input className="input text-sm" placeholder="Kwota" inputMode="decimal" value={directForm.amount} onChange={(e) => setDirectForm((f) => ({ ...f, amount: e.target.value }))} />
             <textarea className="input min-h-[64px] text-sm" placeholder="Uwagi" value={directForm.notes} onChange={(e) => setDirectForm((f) => ({ ...f, notes: e.target.value }))} />
-            <button type="button" onClick={() => void saveDirectCost()} className="rounded-lg bg-moss px-4 py-2.5 text-sm font-semibold text-white hover:bg-ink">
-              Dodaj koszt
-            </button>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => void saveDirectCost()} className="flex-1 rounded-lg bg-moss px-4 py-2.5 text-sm font-semibold text-white hover:bg-ink">
+                {editingCostId ? "Zapisz zmiany" : "Dodaj koszt"}
+              </button>
+              {editingCostId && (
+                <button type="button" onClick={cancelCostEdit} className="rounded-lg border border-stone-300 px-4 py-2.5 text-sm font-semibold text-ink hover:bg-stone-50">
+                  Anuluj
+                </button>
+              )}
+            </div>
           </Panel>
         </div>
 
@@ -406,6 +577,12 @@ export function CaseCostsSection({
                               <button type="button" disabled={!accountantEmail || sendingId === i.id} onClick={() => void sendToAccountant(i)} className="rounded-md bg-ink px-2 py-1 text-xs font-semibold text-white hover:bg-moss disabled:opacity-40">
                                 {sendingId === i.id ? "Wysyłka..." : "Do księgowej"}
                               </button>
+                              <button type="button" onClick={() => startInvoiceEdit(i)} className="rounded-md px-2 py-1 text-xs font-semibold text-steel hover:bg-stone-100 hover:text-ink">
+                                Edytuj
+                              </button>
+                              <button type="button" onClick={() => void removeInvoice(i)} className="rounded-md px-2 py-1 text-xs font-medium text-rose-500 hover:bg-rose-50">
+                                Usuń
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -432,7 +609,15 @@ export function CaseCostsSection({
                     <p className="text-xs text-steel">{categoryLabel(c.cost_type)} · {formatDate(c.cost_date)}</p>
                     {c.notes ? <p className="mt-1 text-xs text-steel">{c.notes}</p> : null}
                   </div>
-                  <p className="shrink-0 font-bold text-ink">{currency.format(Number(c.amount || 0))}</p>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <p className="font-bold text-ink">{currency.format(Number(c.amount || 0))}</p>
+                    <button type="button" onClick={() => startCostEdit(c)} className="rounded-md px-2 py-1 text-xs font-semibold text-steel hover:bg-stone-100 hover:text-ink">
+                      Edytuj
+                    </button>
+                    <button type="button" onClick={() => void removeCost(c)} className="rounded-md px-2 py-1 text-xs font-medium text-rose-500 hover:bg-rose-50">
+                      Usuń
+                    </button>
+                  </div>
                 </div>
               ))}
               {directCosts.length === 0 && <p className="rounded-lg border border-dashed border-stone-300 p-5 text-center text-sm text-steel">Brak kosztów bezpośrednich.</p>}
@@ -440,6 +625,7 @@ export function CaseCostsSection({
           </section>
         </div>
       </div>
+      {confirmDialog}
     </section>
   );
 }

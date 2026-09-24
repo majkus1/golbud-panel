@@ -2,8 +2,10 @@
 
 import { DateInput } from "@/components/date-input";
 import { showToast } from "@/components/toast";
+import { useConfirm } from "@/components/use-confirm";
 import { UNITS } from "@/lib/domain";
 import { formatMoney } from "@/lib/format";
+import { formatPlMoney } from "@/lib/money-vat";
 import { supabase } from "@/lib/supabase";
 import type { ExtraWork, Unit } from "@/lib/types";
 import { btnSectionAdd } from "@/components/case/case-ui";
@@ -19,6 +21,7 @@ export function ExtrasSection({
   items: ExtraWork[];
   onChange: () => Promise<void>;
 }) {
+  const { confirm, confirmDialog } = useConfirm();
   const add = async () => {
     const { error } = await supabase.from("extra_works").insert({
       organization_id: organizationId,
@@ -37,6 +40,17 @@ export function ExtrasSection({
     const { error } = await supabase.from("extra_works").update(patch).eq("id", id);
     if (error) { showToast("Nie udało się zapisać", "error"); return; }
     if (!silent) showToast("Zapisano");
+    await onChange();
+  };
+  const remove = async (x: ExtraWork) => {
+    const ok = await confirm({
+      title: "Usunąć robotę dodatkową?",
+      message: `„${x.description}” — ${formatPlMoney(Number(x.line_total || 0))}. Pozycja zniknie też z aneksu o roboty dodatkowe przygotowanego z wzoru.`
+    });
+    if (!ok) return;
+    const { error } = await supabase.from("extra_works").delete().eq("id", x.id);
+    if (error) { showToast("Nie udało się usunąć pozycji", "error"); return; }
+    showToast("Usunięto pozycję");
     await onChange();
   };
   const extrasTotal = items.reduce((s, x) => s + Number(x.line_total || 0), 0);
@@ -110,7 +124,12 @@ export function ExtrasSection({
               >
                 {x.accepted ? "✓ Zaakceptowana" : "Zaakceptuj"}
               </button>
-              <span className="text-base font-bold text-ink">{formatMoney(x.line_total)}</span>
+              <span className="flex items-center gap-2">
+                <span className="text-base font-bold text-ink">{formatMoney(x.line_total)}</span>
+                <button type="button" onClick={() => void remove(x)} className="rounded-lg px-2.5 py-1 text-xs font-medium text-rose-500 hover:bg-rose-50">
+                  Usuń
+                </button>
+              </span>
             </div>
           </div>
         ))}
@@ -128,6 +147,7 @@ export function ExtrasSection({
               <th className="py-2">Stawka</th>
               <th className="py-2">Wartość</th>
               <th className="py-2">Akcept.</th>
+              <th className="py-2" />
             </tr>
           </thead>
           <tbody className="divide-y divide-stone-100">
@@ -154,11 +174,17 @@ export function ExtrasSection({
                 <td className="py-2 text-center">
                   <input type="checkbox" checked={x.accepted} onChange={(e) => void update(x.id, { accepted: e.target.checked }, true)} />
                 </td>
+                <td className="py-2 text-right">
+                  <button type="button" onClick={() => void remove(x)} className="rounded-lg px-2.5 py-1 text-xs font-medium text-rose-500 hover:bg-rose-50">
+                    Usuń
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {confirmDialog}
     </section>
   );
 }

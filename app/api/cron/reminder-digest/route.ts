@@ -277,6 +277,8 @@ export async function GET(request: Request) {
   const { data: reminderRows, error: rErr } = await supabase
     .from("reminders")
     .select("id, remind_at, title, note, case_id, organization_id, completed_at, cases!inner(client_name,status)")
+    // Sprawy z kosza nie trafiają do porannego podsumowania.
+    .is("cases.deleted_at", null)
     .is("completed_at", null)
     .lte("remind_at", today);
 
@@ -307,6 +309,7 @@ export async function GET(request: Request) {
   const { data: caseRows, error: cErr } = await supabase
     .from("cases")
     .select("id, organization_id, client_name, status, next_contact_date")
+    .is("deleted_at", null)
     .not("next_contact_date", "is", null);
 
   if (cErr) {
@@ -332,6 +335,8 @@ export async function GET(request: Request) {
   const { data: scheduleRows, error: sErr } = await supabase
     .from("case_schedule_items")
     .select("id, title, due_date, case_id, organization_id, cases!inner(client_name,status)")
+    // Sprawy z kosza nie trafiają do porannego podsumowania.
+    .is("cases.deleted_at", null)
     .eq("completed", false)
     .not("due_date", "is", null)
     .lte("due_date", today);
@@ -362,6 +367,8 @@ export async function GET(request: Request) {
   const { data: paymentRows, error: pErr } = await supabase
     .from("payments")
     .select("id, title, due_date, amount_due, amount_paid, case_id, organization_id, cases!inner(client_name,status)")
+    // Sprawy z kosza nie trafiają do porannego podsumowania.
+    .is("cases.deleted_at", null)
     .is("paid_at", null)
     .not("due_date", "is", null)
     .lte("due_date", today);
@@ -396,6 +403,8 @@ export async function GET(request: Request) {
   const { data: upcomingPaymentRows, error: upErr } = await supabase
     .from("payments")
     .select("id, title, due_date, amount_due, amount_paid, case_id, organization_id, cases!inner(client_name,status)")
+    // Sprawy z kosza nie trafiają do porannego podsumowania.
+    .is("cases.deleted_at", null)
     .is("paid_at", null)
     .not("due_date", "is", null)
     .gte("due_date", tomorrow)
@@ -431,6 +440,8 @@ export async function GET(request: Request) {
   const { data: taskRows, error: tErr } = await supabase
     .from("case_tasks")
     .select("id, title, due_date, case_id, organization_id, cases!inner(client_name,status)")
+    // Sprawy z kosza nie trafiają do porannego podsumowania.
+    .is("cases.deleted_at", null)
     .not("case_id", "is", null)
     .not("due_date", "is", null)
     .lte("due_date", today)

@@ -71,7 +71,7 @@ function EquipmentInner({ userId }: { userId: string }) {
         .eq("organization_id", organizationId)
         .eq("returned", false)
         .order("assigned_date", { ascending: false }),
-      supabase.from("cases").select("id, client_name").eq("organization_id", organizationId).order("client_name").limit(120)
+      supabase.from("cases").select("id, client_name").eq("organization_id", organizationId).is("deleted_at", null).order("client_name").limit(120)
     ]);
 
     if (eqRes.error) {

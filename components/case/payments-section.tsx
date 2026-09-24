@@ -2,7 +2,9 @@
 
 import { DateInput } from "@/components/date-input";
 import { showToast } from "@/components/toast";
+import { useConfirm } from "@/components/use-confirm";
 import { formatMoney, isDue } from "@/lib/format";
+import { formatPlMoney } from "@/lib/money-vat";
 import { supabase } from "@/lib/supabase";
 import type { Payment } from "@/lib/types";
 import { btnSectionAdd } from "@/components/case/case-ui";
@@ -18,6 +20,7 @@ export function PaymentsSection({
   items: Payment[];
   onChange: () => Promise<void>;
 }) {
+  const { confirm, confirmDialog } = useConfirm();
   const add = async () => {
     const maxSort = items.reduce((m, i) => Math.max(m, i.sort_order), -1);
     const { error } = await supabase.from("payments").insert({
@@ -36,6 +39,18 @@ export function PaymentsSection({
     const { error } = await supabase.from("payments").update(patch).eq("id", id);
     if (error) { showToast("Nie udało się zapisać", "error"); return; }
     if (!silent) showToast("Zapisano");
+    await onChange();
+  };
+  // Usunięcie pozycji płatności (np. dodanej omyłkowo). Saldo sprawy przelicza się od razu.
+  const remove = async (p: Payment) => {
+    const ok = await confirm({
+      title: "Usunąć płatność?",
+      message: `„${p.title}” — należność ${formatPlMoney(Number(p.amount_due || 0))}, wpłacono ${formatPlMoney(Number(p.amount_paid || 0))}. Saldo sprawy przeliczy się bez tej pozycji.`
+    });
+    if (!ok) return;
+    const { error } = await supabase.from("payments").delete().eq("id", p.id);
+    if (error) { showToast("Nie udało się usunąć płatności", "error"); return; }
+    showToast("Usunięto płatność");
     await onChange();
   };
   const totalDue = items.reduce((s, p) => s + Number(p.amount_due || 0), 0);
@@ -120,11 +135,18 @@ export function PaymentsSection({
                   <input key={`m-${p.id}-paid-${p.amount_paid}`} type="number" min="0" className="input py-1.5 text-sm" defaultValue={p.amount_paid} onBlur={(e) => { if (Number(e.target.value) !== p.amount_paid) void update(p.id, { amount_paid: Number(e.target.value) }); }} />
                 </label>
               </div>
-              {balance > 0 && (
+              <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold text-steel">
-                  Pozostało: <span className="text-amber-700">{formatMoney(balance)}</span>
+                  {balance > 0 ? (
+                    <>
+                      Pozostało: <span className="text-amber-700">{formatMoney(balance)}</span>
+                    </>
+                  ) : null}
                 </p>
-              )}
+                <button type="button" onClick={() => void remove(p)} className="rounded-lg px-2.5 py-1 text-xs font-medium text-rose-500 hover:bg-rose-50">
+                  Usuń
+                </button>
+              </div>
             </div>
           );
         })}
@@ -141,6 +163,7 @@ export function PaymentsSection({
               <th className="py-2">Należność</th>
               <th className="py-2">Wpłacono</th>
               <th className="py-2">Zapłacono dnia</th>
+              <th className="py-2" />
             </tr>
           </thead>
           <tbody className="divide-y divide-stone-100">
@@ -166,6 +189,11 @@ export function PaymentsSection({
                   <td className="py-2">
                     <DateInput className="py-1 text-sm" value={p.paid_at ? p.paid_at.slice(0, 10) : ""} onChange={(e) => void update(p.id, { paid_at: e.target.value ? `${e.target.value}T00:00:00.000Z` : null }, true)} />
                   </td>
+                  <td className="py-2 text-right">
+                    <button type="button" onClick={() => void remove(p)} className="rounded-lg px-2.5 py-1 text-xs font-medium text-rose-500 hover:bg-rose-50">
+                      Usuń
+                    </button>
+                  </td>
                 </tr>
               );
             })}
@@ -176,12 +204,13 @@ export function PaymentsSection({
                 <td className="py-2" colSpan={3}>RAZEM</td>
                 <td className="py-2 text-center">{formatMoney(totalDue)}</td>
                 <td className="py-2 text-center">{formatMoney(totalPaid)}</td>
-                <td className="py-2" />
+                <td className="py-2" colSpan={2} />
               </tr>
             </tfoot>
           )}
         </table>
       </div>
+      {confirmDialog}
     </section>
   );
 }

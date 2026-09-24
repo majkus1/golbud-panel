@@ -1,3 +1,4 @@
+import { dropTrashedCaseRows, loadTrashedCaseIds } from "@/lib/active-cases";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildFinancialControlReport } from "@/lib/financial-control-report";
 import { buildProfitabilitySummary, type ProfitabilitySummary } from "@/lib/profitability-report";
@@ -210,6 +211,7 @@ export async function canAccessAssistantCase(
     .select("id")
     .eq("id", caseId)
     .eq("organization_id", access.organizationId)
+    .is("deleted_at", null)
     .maybeSingle();
   return !!data;
 }
@@ -237,21 +239,24 @@ async function loadProfitabilityContext(supabase: Supabase, organizationId: stri
     supabase.from("case_direct_costs").select("*").eq("organization_id", organizationId)
   ]);
 
+  // Sprawy z kosza nie liczą się do rentowności, o którą pyta asystent.
+  const trashed = await loadTrashedCaseIds(supabase, organizationId);
+  const active = <T extends { case_id?: string | null }>(data: unknown): T[] => dropTrashedCaseRows((data || []) as T[], trashed);
   return buildProfitabilitySummary({
     cases: (cases || []) as CaseRow[],
-    payments: (payments || []) as Payment[],
-    salesInvoices: (salesInvoices || []) as Invoice[],
+    payments: active<Payment>(payments),
+    salesInvoices: active<Invoice>(salesInvoices),
     workHours: [],
     employees: [],
     employeeEntries: [],
     pieceworkEntries: [],
     employeeMonthlySettlements: [],
-    supplierInvoices: (supplierInvoices || []) as SupplierInvoice[],
-    profitabilityPlans: (profitabilityPlans || []) as CaseProfitabilityPlan[],
-    caseSubcontractors: (caseSubcontractors || []) as CaseSubcontractor[],
-    subcontractorEntries: (subcontractorEntries || []) as SubcontractorSettlementEntry[],
-    directCosts: (directCosts || []) as CaseDirectCost[],
-    aggregatedLaborCosts: (aggregatedLaborCosts || []) as AggregatedLaborCost[]
+    supplierInvoices: active<SupplierInvoice>(supplierInvoices),
+    profitabilityPlans: active<CaseProfitabilityPlan>(profitabilityPlans),
+    caseSubcontractors: active<CaseSubcontractor>(caseSubcontractors),
+    subcontractorEntries: active<SubcontractorSettlementEntry>(subcontractorEntries),
+    directCosts: active<CaseDirectCost>(directCosts),
+    aggregatedLaborCosts: active<AggregatedLaborCost>(aggregatedLaborCosts)
   });
 }
 
@@ -263,10 +268,11 @@ async function loadFinancialControlContext(supabase: Supabase, organizationId: s
     supabase.from("crews").select("*").eq("organization_id", organizationId)
   ]);
 
+  const trashed = await loadTrashedCaseIds(supabase, organizationId);
   return buildFinancialControlReport({
     asOfDate: new Date().toISOString().slice(0, 10),
     cases: (cases || []) as CaseRow[],
-    payments: (payments || []) as Payment[],
+    payments: dropTrashedCaseRows((payments || []) as Payment[], trashed),
     items: (items || []) as FinancialControlItem[],
     crews: (crews || []) as never[],
     includeEmployeeSettlements
@@ -401,7 +407,9 @@ export async function buildAssistantContext(
   const caseRows = ((cases || []) as CaseRow[]).slice(0, 25).map(
     (c) => `- ${c.client_name} / ${c.location || "brak"}: ${c.status}, koniec ${dateLabel(c.realization_end_date)}, kontakt ${dateLabel(c.next_contact_date)}${access.canSeeFinances ? `, wartość ${money(c.estimated_value)}` : ""}`
   );
-  const taskRows = ((tasks || []) as CaseTask[]).slice(0, 25).map(
+  // Zadania spraw z kosza nie trafiają do podsumowania firmy.
+  const activeTasks = dropTrashedCaseRows((tasks || []) as CaseTask[], await loadTrashedCaseIds(supabase, access.organizationId));
+  const taskRows = activeTasks.slice(0, 25).map(
     (t) => `- ${t.title}: ${t.status}, priorytet ${t.priority}, termin ${dateLabel(t.due_date)}`
   );
   const caseList = ((cases || []) as CaseRow[]);
@@ -621,11 +629,16 @@ export async function buildAssistantQueryContext(
     const taskQuery = supabase.from("case_tasks").select("id,case_id,title,due_date,status,priority").eq("organization_id", orgId).not("due_date", "is", null).limit(1000);
     const reminderQuery = supabase.from("reminders").select("id,case_id,title,remind_at,completed_at").eq("organization_id", orgId).is("completed_at", null).limit(1000);
     const scheduleQuery = supabase.from("case_schedule_items").select("id,case_id,title,due_date,completed").eq("organization_id", orgId).eq("completed", false).not("due_date", "is", null).limit(1000);
-    const [taskRes, reminderRes, scheduleRes] = await Promise.all([
+    const [taskRes, reminderRes, scheduleRes, trashedForDates] = await Promise.all([
       caseFilter ? taskQuery.eq(caseFilter.column, caseFilter.value) : taskQuery,
       caseFilter ? reminderQuery.eq(caseFilter.column, caseFilter.value) : reminderQuery,
-      caseFilter ? scheduleQuery.eq(caseFilter.column, caseFilter.value) : scheduleQuery
+      caseFilter ? scheduleQuery.eq(caseFilter.column, caseFilter.value) : scheduleQuery,
+      loadTrashedCaseIds(supabase, orgId)
     ]);
+    // Terminy spraw z kosza nie trafiają do odpowiedzi asystenta.
+    taskRes.data = dropTrashedCaseRows((taskRes.data || []) as Array<{ case_id: string | null }>, trashedForDates) as typeof taskRes.data;
+    reminderRes.data = dropTrashedCaseRows((reminderRes.data || []) as Array<{ case_id: string | null }>, trashedForDates) as typeof reminderRes.data;
+    scheduleRes.data = dropTrashedCaseRows((scheduleRes.data || []) as Array<{ case_id: string | null }>, trashedForDates) as typeof scheduleRes.data;
     blocks.push(lines("Narzędzie: terminy", [
       `Zadania: ${((taskRes.data || []) as Array<Record<string, unknown>>).map((row) => `${row.case_id || "ogólne"}: ${row.title}, ${dateLabel(row.due_date as string | null)}, ${row.status}, ${row.priority}`).join("; ") || "brak"}`,
       `Przypomnienia: ${((reminderRes.data || []) as Array<Record<string, unknown>>).map((row) => `${row.case_id}: ${row.title}, ${row.remind_at}`).join("; ") || "brak"}`,

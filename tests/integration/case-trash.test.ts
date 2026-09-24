@@ -161,6 +161,17 @@ describe("kosz spraw", () => {
     expect(data?.deleted_at).toBeNull();
   });
 
+  it("identyfikatory spraw z kosza widzi każdy członek firmy, a nikt spoza niej", async (ctx) => {
+    if (!requireStack(ctx)) return;
+    await owner.rpc("trash_case", { p_case_id: caseId });
+    const forSales = await sales.rpc("trashed_case_ids", { p_organization_id: organizationId });
+    expect(forSales.error).toBeNull();
+    expect(forSales.data).toContain(caseId);
+    const forStranger = await stranger.rpc("trashed_case_ids", { p_organization_id: organizationId });
+    expect(forStranger.data ?? []).toEqual([]);
+    await owner.rpc("restore_case", { p_case_id: caseId });
+  });
+
   it("osoba z innej firmy nie przeniesie cudzej sprawy do kosza", async (ctx) => {
     if (!requireStack(ctx)) return;
     const rpc = await stranger.rpc("trash_case", { p_case_id: caseId });

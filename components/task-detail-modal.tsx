@@ -1,5 +1,6 @@
 "use client";
 
+import { useConfirm } from "@/components/use-confirm";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { showToast } from "@/components/toast";
 import { formatDate } from "@/lib/format";
@@ -36,6 +37,7 @@ function PaperclipIcon() {
 }
 
 export function TaskDetailModal({ task, organizationId, userId, members, onClose, onRead }: Props) {
+  const { confirm, confirmDialog } = useConfirm();
   const [comments, setComments] = useState<CaseTaskComment[]>([]);
   const [attByComment, setAttByComment] = useState<Record<string, CaseTaskCommentAttachment[]>>({});
   const [urls, setUrls] = useState<Record<string, string>>({});
@@ -212,7 +214,7 @@ export function TaskDetailModal({ task, organizationId, userId, members, onClose
   };
 
   const removeComment = async (id: string) => {
-    if (!confirm("Usunąć komentarz?")) return;
+    if (!(await confirm({ title: "Usunąć komentarz?", message: "Komentarz zniknie z rozmowy przy zadaniu." }))) return;
     const { error } = await supabase.from("case_task_comments").delete().eq("id", id);
     if (error) {
       showToast("Nie udało się usunąć", "error");
@@ -366,6 +368,7 @@ export function TaskDetailModal({ task, organizationId, userId, members, onClose
           <p className="mt-1 text-[0.65rem] text-stone-400">Ctrl/⌘ + Enter wysyła. Zdjęcia/PDF do 15 MB.</p>
         </div>
       </div>
+      {confirmDialog}
     </div>
   );
 }

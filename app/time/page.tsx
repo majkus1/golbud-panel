@@ -73,7 +73,7 @@ function TimeInner({ userId }: { userId: string }) {
     setLoading(true);
     setLoadError(null);
     const [casesRes, whRes, employeeRes] = await Promise.all([
-      supabase.from("cases").select("id, client_name, location").eq("organization_id", organizationId).order("client_name").limit(200),
+      supabase.from("cases").select("id, client_name, location").eq("organization_id", organizationId).is("deleted_at", null).order("client_name").limit(200),
       supabase
         .from("work_hours")
         .select("*")

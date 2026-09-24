@@ -1,5 +1,6 @@
 "use client";
 
+import { dropTrashedCaseRows, loadTrashedCaseIds } from "@/lib/active-cases";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
@@ -114,7 +115,7 @@ function CalendarInner() {
       canSeeHr
         ? supabase.rpc("employee_hr_profiles_visible", { target_org: organizationId })
         : Promise.resolve({ data: [] }),
-      supabase.from("cases").select("id,client_name,location,next_contact_date,realization_end_date,status").eq("organization_id", organizationId),
+      supabase.from("cases").select("id,client_name,location,next_contact_date,realization_end_date,status").eq("organization_id", organizationId).is("deleted_at", null),
       supabase.from("case_schedule_items").select("*").eq("organization_id", organizationId).eq("completed", false).not("due_date", "is", null).gte("due_date", isoOf(rangeStart)).lte("due_date", isoOf(rangeEnd)).order("due_date"),
       supabase.from("reminders").select("*").eq("organization_id", organizationId).is("completed_at", null).gte("remind_at", `${isoOf(rangeStart)}T00:00:00`).lte("remind_at", `${isoOf(rangeEnd)}T23:59:59`).order("remind_at"),
       canSeeBusinessSensitive ? supabase.from("payments").select("*").eq("organization_id", organizationId).not("due_date", "is", null).gte("due_date", isoOf(rangeStart)).lte("due_date", isoOf(rangeEnd)).order("due_date", { ascending: true }) : Promise.resolve({ data: [] }),
@@ -124,7 +125,10 @@ function CalendarInner() {
       canSeeBusinessSensitive ? supabase.from("vehicles").select("*").eq("organization_id", organizationId) : Promise.resolve({ data: [] }),
       canSeeBusinessSensitive ? supabase.from("company_policies").select("*").eq("organization_id", organizationId) : Promise.resolve({ data: [] })
     ]);
-    const loaded = (taskRes.data || []) as CaseTask[];
+    // Terminy ze spraw w koszu (zadania, płatności, faktury, etapy) nie trafiają do kalendarza.
+    const trashed = await loadTrashedCaseIds(supabase, organizationId);
+    const active = <T extends { case_id?: string | null }>(data: unknown): T[] => dropTrashedCaseRows((data || []) as T[], trashed);
+    const loaded = active<CaseTask>(taskRes.data);
     // RPC nie filtruje po dacie (zbiór jest już mały — własne/brygadowe terminy),
     // więc zakres miesiąca stosujemy tutaj, tak jak dla terminów z profilu poniżej.
     const loadedDocuments = ((documentRes.data || []) as EmployeeDocument[]).filter(
@@ -177,30 +181,30 @@ function CalendarInner() {
       }
     }
     const caseNameById = new Map(((caseRes.data || []) as Pick<CaseRow, "id" | "client_name" | "location">[]).map((c) => [c.id, `${c.client_name}${c.location ? ` — ${c.location}` : ""}`]));
-    for (const item of (scheduleRes.data || []) as CaseScheduleItem[]) {
+    for (const item of active<CaseScheduleItem>(scheduleRes.data)) {
       if (!item.due_date) continue;
       business.push({ id: `${item.id}-schedule`, date: item.due_date, title: `Etap: ${item.title}`, subtitle: caseNameById.get(item.case_id) || item.description || "Harmonogram zlecenia", href: `/cases/${item.case_id}`, tone: item.due_date < todayIso ? "red" : "moss", kind: "schedule" });
     }
-    for (const reminder of (reminderRes.data || []) as Reminder[]) {
+    for (const reminder of active<Reminder>(reminderRes.data)) {
       const date = reminder.remind_at.slice(0, 10);
       business.push({ id: `${reminder.id}-reminder`, date, title: `Przypomnienie: ${reminder.title}`, subtitle: caseNameById.get(reminder.case_id) || reminder.note || "Zlecenie", href: `/cases/${reminder.case_id}`, tone: date < todayIso ? "red" : "sky", kind: "reminder" });
     }
-    for (const p of (paymentRes.data || []) as Payment[]) {
+    for (const p of active<Payment>(paymentRes.data)) {
       const left = Number(p.amount_due || 0) - Number(p.amount_paid || 0);
       if (!p.due_date || left <= 0) continue;
       business.push({ id: `${p.id}-payment`, date: p.due_date, title: `Płatność: ${p.title}`, subtitle: caseNameById.get(p.case_id) || "Zlecenie", href: `/cases/${p.case_id}`, tone: p.due_date < todayIso ? "red" : "amber", kind: "payment_due" });
     }
-    for (const invoice of (salesInvoiceRes.data || []) as Invoice[]) {
+    for (const invoice of active<Invoice>(salesInvoiceRes.data)) {
       const left = Number(invoice.gross_total || 0) - Number(invoice.paid_amount || 0);
       if (!invoice.due_date || left <= 0 || invoice.status === "szkic") continue;
       business.push({ id: `${invoice.id}-sales-invoice`, date: invoice.due_date, title: `Faktura sprzedażowa: ${invoice.number}`, subtitle: `${caseNameById.get(invoice.case_id) || invoice.buyer_name} · pozostało ${left.toLocaleString("pl-PL")} zł`, href: `/cases/${invoice.case_id}`, tone: invoice.due_date < todayIso ? "red" : "amber", kind: "sales_invoice_due" });
     }
-    for (const invoice of (supplierRes.data || []) as SupplierInvoice[]) {
+    for (const invoice of active<SupplierInvoice>(supplierRes.data)) {
       const left = Number(invoice.gross_total || 0) - Number(invoice.paid_amount || 0);
       if (!invoice.due_date || left <= 0) continue;
       business.push({ id: `${invoice.id}-supplier`, date: invoice.due_date, title: `Faktura kosztowa: ${invoice.supplier_name}`, subtitle: `${invoice.category}${invoice.invoice_number ? ` · ${invoice.invoice_number}` : ""}`, href: "/reports/profitability", tone: invoice.due_date < todayIso ? "red" : "amber", kind: "supplier_due" });
     }
-    for (const subcontractor of (subcontractorRes.data || []) as CaseSubcontractor[]) {
+    for (const subcontractor of active<CaseSubcontractor>(subcontractorRes.data)) {
       const dates = [
         { key: "start", date: subcontractor.start_date, title: "Start prac podwykonawcy" },
         { key: "end", date: subcontractor.end_date, title: "Koniec prac podwykonawcy" }
@@ -238,7 +242,8 @@ function CalendarInner() {
       const { data: cs } = await supabase
         .from("cases")
         .select("id,client_name,location")
-        .in("id", caseIds);
+        .in("id", caseIds)
+        .is("deleted_at", null);
       const map: Record<string, string> = {};
       for (const c of (cs || []) as CaseRow[]) {
         map[c.id] = `${c.client_name}${c.location ? ` — ${c.location}` : ""}`;

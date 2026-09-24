@@ -60,6 +60,7 @@ export async function resolveCaseAccess(
     .from("cases")
     .select("id, client_name, email, organization_id, created_by")
     .eq("id", caseId)
+    .is("deleted_at", null)
     .maybeSingle();
   if (!caseRow) return fail("Nie znaleziono zlecenia", 404);
 

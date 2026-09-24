@@ -1,5 +1,6 @@
 "use client";
 
+import { dropTrashedCaseRows, loadTrashedCaseIds } from "@/lib/active-cases";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
@@ -63,7 +64,8 @@ function Reports() {
       supabase.from("payments").select("*").eq("organization_id", organizationId)
     ]);
     setCases((c || []) as CaseRow[]);
-    setPayments((p || []) as Payment[]);
+    // Płatności spraw z kosza nie wchodzą do raportów ani eksportu.
+    setPayments(dropTrashedCaseRows((p || []) as Payment[], await loadTrashedCaseIds(supabase, organizationId)));
     setLoading(false);
   }, [organizationId]);
 

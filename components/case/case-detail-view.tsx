@@ -385,11 +385,17 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
     setSaveTemplateName("");
   };
 
+  // „Usuń sprawę” przenosi do kosza — dane zostają, sprawę można przywrócić (Zapytania i oferty → Kosz).
   const deleteCase = async () => {
     setDeleting(true);
-    const { error } = await supabase.from("cases").delete().eq("id", caseId);
+    const { error } = await supabase.rpc("trash_case", { p_case_id: caseId });
     setDeleting(false);
-    if (!error) router.push("/cases");
+    if (error) {
+      showToast("Nie udało się przenieść sprawy do kosza", "error");
+      return;
+    }
+    showToast(`Przeniesiono do kosza: ${caseRow?.client_name ?? "sprawa"}`);
+    router.push("/cases");
   };
 
   const [noteDraft, setNoteDraft] = useState("");
@@ -1128,9 +1134,9 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
       {confirmDialog}
       <ConfirmDialog
         open={showDelete}
-        title="Usunąć sprawę?"
-        message="Usunięte zostaną także warianty ofert, harmonogram, płatności i załączniki powiązane ze sprawą."
-        confirmLabel="Usuń"
+        title="Przenieść sprawę do kosza?"
+        message="Sprawa zniknie z list, kalendarza, zadań i raportów. Nic nie zostanie skasowane — przywrócisz ją w Zapytania i oferty → Kosz."
+        confirmLabel="Przenieś do kosza"
         variant="danger"
         onCancel={() => setShowDelete(false)}
         onConfirm={() => void deleteCase()}

@@ -4,6 +4,7 @@ import { DateInput } from "@/components/date-input";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { showToast } from "@/components/toast";
+import { useConfirm } from "@/components/use-confirm";
 import {
   AS_BUILT_ESTIMATE_LABEL,
   AS_BUILT_ESTIMATE_NAV_SHORT,
@@ -162,6 +163,24 @@ export function AsBuiltEstimatesSection({
     } else {
       showToast("Zapisano w historii — użyj „Pobierz ponownie” poniżej.", "error");
     }
+  };
+
+  const { confirm, confirmDialog } = useConfirm();
+  // Usunięcie z historii: wpis w bazie i zapisany PDF (np. wygenerowany z błędnymi ilościami).
+  const removeExisting = async (row: CaseAsBuiltEstimate) => {
+    const ok = await confirm({
+      title: "Usunąć kosztorys z historii?",
+      message: `„${row.file_name}” z ${formatDateTime(row.created_at)} zniknie z historii razem z zapisanym PDF. Pozycje wyceny zostają bez zmian.`
+    });
+    if (!ok) return;
+    const { error } = await supabase.from("case_as_built_estimates").delete().eq("id", row.id);
+    if (error) {
+      showToast("Nie udało się usunąć — usuwa właściciel lub prowadzący sprawę", "error");
+      return;
+    }
+    if (row.storage_path) await supabase.storage.from("case-attachments").remove([row.storage_path]);
+    showToast("Usunięto kosztorys z historii");
+    await onChange();
   };
 
   const downloadExisting = async (row: CaseAsBuiltEstimate) => {
@@ -378,14 +397,23 @@ export function AsBuiltEstimatesSection({
                     : ` · do dopłaty netto ${formatMoney(Number(row.balance_due))}`}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => void downloadExisting(row)}
-                disabled={downloadingId === row.id}
-                className={`${btnSecondary} w-full sm:w-auto`}
-              >
-                {downloadingId === row.id ? "Pobieranie…" : "Pobierz ponownie"}
-              </button>
+              <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => void downloadExisting(row)}
+                  disabled={downloadingId === row.id}
+                  className={`${btnSecondary} w-full sm:w-auto`}
+                >
+                  {downloadingId === row.id ? "Pobieranie…" : "Pobierz ponownie"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void removeExisting(row)}
+                  className="rounded-lg px-3 py-2 text-xs font-medium text-rose-500 hover:bg-rose-50"
+                >
+                  Usuń
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -401,6 +429,7 @@ export function AsBuiltEstimatesSection({
     <section className="min-w-0 rounded-lg bg-white p-4 shadow-panel sm:p-5">
       {formBlock}
       {historyBlock}
+      {confirmDialog}
     </section>
   );
 }

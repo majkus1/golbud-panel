@@ -120,7 +120,7 @@ function EmployeeSettlementsInner() {
       supabase.from("piecework_activities").select("*").eq("organization_id", organizationId).order("sort_order"),
       supabase.from("employee_monthly_settlements").select("*").eq("organization_id", organizationId).eq("period_month", bounds.start),
       supabase.from("employee_settlement_history").select("*").eq("organization_id", organizationId).eq("period_month", bounds.start).order("created_at", { ascending: false }).limit(200),
-      supabase.from("cases").select("id, client_name, location").eq("organization_id", organizationId).order("client_name").limit(300)
+      supabase.from("cases").select("id, client_name, location").eq("organization_id", organizationId).is("deleted_at", null).order("client_name").limit(300)
     ]);
 
     const firstError = employeeRes.error || compensationRes.error || hoursRes.error || entryRes.error || cardRes.error || historyRes.error;

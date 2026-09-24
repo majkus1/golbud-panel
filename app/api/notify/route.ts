@@ -181,6 +181,7 @@ export async function POST(request: Request) {
         .from("cases")
         .select("id, client_name, location, source, work_description, organization_id, created_by")
         .eq("id", body.caseId)
+        .is("deleted_at", null)
         .maybeSingle();
       if (!caseRow) return NextResponse.json({ error: "Sprawa nie znaleziona" }, { status: 404 });
       const { data: senderMember } = await userClient
@@ -245,6 +246,7 @@ export async function POST(request: Request) {
         .from("cases")
         .select("id, client_name, location, organization_id, created_by")
         .eq("id", body.caseId)
+        .is("deleted_at", null)
         .maybeSingle();
       if (!caseRow) return NextResponse.json({ error: "Sprawa nie znaleziona" }, { status: 404 });
       const [{ data: senderMember }, { data: recipientMember }, { data: assignment }] = await Promise.all([
@@ -336,7 +338,9 @@ export async function POST(request: Request) {
 
       let caseClientName: string | null = null;
       if (task.case_id) {
-        const { data: c } = await userClient.from("cases").select("client_name").eq("id", task.case_id).maybeSingle();
+        const { data: c } = await userClient.from("cases").select("client_name, deleted_at").eq("id", task.case_id).maybeSingle();
+        // Zadanie w sprawie z kosza — bez powiadomień.
+        if (c?.deleted_at) return NextResponse.json({ ok: true, sent: 0, reason: "case_in_trash" });
         caseClientName = (c?.client_name as string | undefined) ?? null;
       }
 
@@ -423,7 +427,9 @@ export async function POST(request: Request) {
           if (emails.length === 0) return null;
           let caseClientName: string | null = null;
           if (task.case_id) {
-            const { data: c } = await userClient.from("cases").select("client_name").eq("id", task.case_id).maybeSingle();
+            const { data: c } = await userClient.from("cases").select("client_name, deleted_at").eq("id", task.case_id).maybeSingle();
+            // Zadanie w sprawie z kosza — bez powiadomień.
+            if (c?.deleted_at) return NextResponse.json({ ok: true, sent: 0, reason: "case_in_trash" });
             caseClientName = (c?.client_name as string | undefined) ?? null;
           }
           return sendTaskCommentEmail({

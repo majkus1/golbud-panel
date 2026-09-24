@@ -101,7 +101,7 @@ function WarehouseInner({ userId }: { userId: string }) {
     setLoadError(null);
     const [itemsRes, casesRes, membersRes] = await Promise.all([
       supabase.from("warehouse_items").select("*").eq("organization_id", organizationId).order("sort_order").order("label"),
-      supabase.from("cases").select("id, client_name").eq("organization_id", organizationId).order("client_name").limit(80),
+      supabase.from("cases").select("id, client_name").eq("organization_id", organizationId).is("deleted_at", null).order("client_name").limit(80),
       supabase.from("org_member_profiles").select("user_id, email, role").eq("organization_id", organizationId)
     ]);
 

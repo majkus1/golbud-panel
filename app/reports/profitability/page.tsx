@@ -1,5 +1,6 @@
 "use client";
 
+import { dropTrashedCaseRows, loadTrashedCaseIds } from "@/lib/active-cases";
 import Link from "next/link";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -203,16 +204,19 @@ function ProfitabilityInner({ userId }: { userId: string }) {
       setLoadError(missing ? "Brakuje tabel finansów. Uruchom migrację 0035_org_profitability_settlements.sql." : err?.message || "");
     }
 
+    // Przychody i koszty spraw z kosza nie liczą się do rentowności firmy.
+    const trashed = await loadTrashedCaseIds(supabase, organizationId);
+    const active = <T extends { case_id?: string | null }>(data: unknown): T[] => dropTrashedCaseRows((data || []) as T[], trashed);
     setCases((caseRes.data || []) as CaseRow[]);
-    setPayments((paymentRes.data || []) as Payment[]);
-    setSalesInvoices((salesInvoiceRes.data || []) as Invoice[]);
-    setAggregatedLaborCosts((laborRes.data || []) as AggregatedLaborCost[]);
-    setSupplierInvoices((invoiceRes.data || []) as SupplierInvoice[]);
-    setProfitabilityPlans((planRes.data || []) as CaseProfitabilityPlan[]);
-    setCaseSubcontractors((caseSubRes.data || []) as CaseSubcontractor[]);
+    setPayments(active<Payment>(paymentRes.data));
+    setSalesInvoices(active<Invoice>(salesInvoiceRes.data));
+    setAggregatedLaborCosts(active<AggregatedLaborCost>(laborRes.data));
+    setSupplierInvoices(active<SupplierInvoice>(invoiceRes.data));
+    setProfitabilityPlans(active<CaseProfitabilityPlan>(planRes.data));
+    setCaseSubcontractors(active<CaseSubcontractor>(caseSubRes.data));
     setSubcontractors((subRes.data || []) as Subcontractor[]);
-    setSubEntries((subEntryRes.data || []) as SubcontractorSettlementEntry[]);
-    setDirectCosts((costRes.data || []) as CaseDirectCost[]);
+    setSubEntries(active<SubcontractorSettlementEntry>(subEntryRes.data));
+    setDirectCosts(active<CaseDirectCost>(costRes.data));
     setLoading(false);
   }, [organizationId, canUse]);
 

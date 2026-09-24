@@ -7,7 +7,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { CaseLeadBadge } from "@/components/case-lead-badge";
 import { CaseAuthorLine } from "@/components/case-author-line";
 import { ExpandableText } from "@/components/expandable-text";
-import { canCreateCases, useOrg } from "@/components/org-context";
+import { canCreateCases, canManageOrg, useOrg } from "@/components/org-context";
 import { buildCsv, downloadCsv } from "@/lib/csv";
 import {
   CASE_LIST_PRESET,
@@ -235,6 +235,11 @@ export function CasesListClient() {
               >
                 Eksport CSV
               </button>
+              {canManageOrg(role) && (
+                <Link href="/cases/kosz" className="rounded-md border border-stone-300 bg-white px-4 py-3 text-center text-sm font-semibold text-steel hover:bg-stone-50 hover:text-ink">
+                  Kosz
+                </Link>
+              )}
               <Link href="/cases/new" className="rounded-md bg-ink px-4 py-3 text-center text-sm font-semibold text-white hover:bg-moss">
                 Dodaj zapytanie
               </Link>
