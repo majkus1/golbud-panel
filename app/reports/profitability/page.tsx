@@ -723,7 +723,7 @@ function ProfitabilityInner({ userId }: { userId: string }) {
 
           <Panel title="Faktura hurtowni / kosztowa" hint="Materiały, sprzęt, transport i usługi przypisane do sprawy.">
             <SelectCase value={invoiceForm.case_id} cases={caseOptions} onChange={(v) => setInvoiceForm((f) => ({ ...f, case_id: v }))} />
-            <input className="input text-sm" placeholder="Hurtownia / dostawca" value={invoiceForm.supplier_name} onChange={(e) => setInvoiceForm((f) => ({ ...f, supplier_name: e.target.value }))} />
+            <input className="input text-sm" placeholder="Dostawca / wykonawca" value={invoiceForm.supplier_name} onChange={(e) => setInvoiceForm((f) => ({ ...f, supplier_name: e.target.value }))} />
             <div className="grid gap-2 sm:grid-cols-2">
               <input className="input text-sm" placeholder="Numer faktury" value={invoiceForm.invoice_number} onChange={(e) => setInvoiceForm((f) => ({ ...f, invoice_number: e.target.value }))} />
               <select className="input text-sm" value={invoiceForm.category} onChange={(e) => setInvoiceForm((f) => ({ ...f, category: e.target.value as SupplierInvoiceCategory }))}>

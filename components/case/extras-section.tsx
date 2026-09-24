@@ -62,7 +62,7 @@ export function ExtrasSection({
         <h2 className="min-w-0 text-base font-bold text-ink sm:text-lg">Roboty dodatkowe</h2>
         <button type="button" onClick={add} className={btnSectionAdd}>
           <span className="sm:hidden">+ Pozycja</span>
-          <span className="hidden sm:inline">Dodaj pozycję</span>
+          <span className="hidden sm:inline">Dodaj robotę dodatkową</span>
         </button>
       </div>
 
@@ -146,7 +146,7 @@ export function ExtrasSection({
               <th className="py-2">Jedn.</th>
               <th className="py-2">Stawka</th>
               <th className="py-2">Wartość</th>
-              <th className="py-2">Akcept.</th>
+              <th className="py-2">Akceptacja klienta</th>
               <th className="py-2" />
             </tr>
           </thead>

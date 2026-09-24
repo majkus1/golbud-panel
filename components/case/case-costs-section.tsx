@@ -178,7 +178,7 @@ export function CaseCostsSection({
 
   const saveInvoice = async () => {
     if (!invoiceForm.supplier_name.trim()) {
-      showToast("Podaj dostawcę / hurtownię.", "error");
+      showToast("Podaj dostawcę lub wykonawcę.", "error");
       return;
     }
     const gross = parseAmount(invoiceForm.gross_total);
@@ -315,7 +315,7 @@ export function CaseCostsSection({
       showToast(error.message, "error");
       return;
     }
-    showToast("Koszt bezpośredni dodany");
+    showToast("Wydatek dodany");
     if (shouldAlertAmount(amount)) {
       void notify({
         type: "financial_alert",
@@ -457,7 +457,7 @@ export function CaseCostsSection({
       <div className="rounded-lg bg-white p-4 shadow-panel sm:p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h2 className="text-lg font-bold text-ink">Koszty budowy i faktury hurtowni</h2>
+            <h2 className="text-lg font-bold text-ink">Koszty budowy</h2>
             <p className="mt-1 max-w-3xl text-sm text-steel">
               Faktury zakupowe, skany do księgowej i szybkie koszty przypisane bezpośrednio do tego zlecenia.
             </p>
@@ -477,7 +477,7 @@ export function CaseCostsSection({
             title={editingInvoiceId ? "Popraw fakturę kosztową" : "Dodaj fakturę kosztową"}
             hint={editingInvoiceId ? "Zmieniasz zapisaną fakturę. Nowy skan zastąpi poprzedni." : "Hurtownia, transport, sprzęt, usługa lub faktura podwykonawcy. Opcjonalnie dodaj PDF/skan."}
           >
-            <input className="input text-sm" placeholder="Hurtownia / dostawca" value={invoiceForm.supplier_name} onChange={(e) => setInvoiceForm((f) => ({ ...f, supplier_name: e.target.value }))} />
+            <input className="input text-sm" placeholder="Dostawca / wykonawca" value={invoiceForm.supplier_name} onChange={(e) => setInvoiceForm((f) => ({ ...f, supplier_name: e.target.value }))} />
             <div className="grid gap-2 sm:grid-cols-2">
               <input className="input text-sm" placeholder="Numer faktury" value={invoiceForm.invoice_number} onChange={(e) => setInvoiceForm((f) => ({ ...f, invoice_number: e.target.value }))} />
               <select className="input text-sm" value={invoiceForm.category} onChange={(e) => setInvoiceForm((f) => ({ ...f, category: e.target.value as SupplierInvoiceCategory }))}>
@@ -530,7 +530,7 @@ export function CaseCostsSection({
           </Panel>
 
           <Panel
-            title={editingCostId ? "Popraw koszt bez faktury" : "Koszt bez faktury"}
+            title={editingCostId ? "Popraw inny wydatek" : "Inny wydatek"}
             hint="Paliwo, wynajem, transport, drobne zakupy lub inny koszt, który ma wejść do rentowności."
           >
             <div className="grid gap-2 sm:grid-cols-2">
@@ -559,7 +559,7 @@ export function CaseCostsSection({
           <section className="min-w-0 rounded-lg bg-white p-4 shadow-panel sm:p-5">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h3 className="text-base font-bold text-ink">Faktury kosztowe przy zleceniu</h3>
+                <h3 className="text-base font-bold text-ink">Faktury kosztowe budowy</h3>
                 <p className="text-xs text-steel">Wyślij pojedynczą fakturę do księgowej albo otwórz podpięty skan.</p>
               </div>
               {/* Adres pochodzi z Ustawień firmy — mówimy to wprost, żeby nie wyglądał na wpisany na sztywno. */}
@@ -642,7 +642,7 @@ export function CaseCostsSection({
           </section>
 
           <section className="min-w-0 rounded-lg bg-white p-4 shadow-panel sm:p-5">
-            <h3 className="text-base font-bold text-ink">Koszty bezpośrednie</h3>
+            <h3 className="text-base font-bold text-ink">Pozostałe wydatki</h3>
             <div className="mt-3 grid gap-2">
               {directCosts.map((c) => (
                 <div key={c.id} className="flex flex-col gap-2 rounded-lg border border-stone-200 p-3 sm:flex-row sm:items-start sm:justify-between">
@@ -662,7 +662,7 @@ export function CaseCostsSection({
                   </div>
                 </div>
               ))}
-              {directCosts.length === 0 && <p className="rounded-lg border border-dashed border-stone-300 p-5 text-center text-sm text-steel">Brak kosztów bezpośrednich.</p>}
+              {directCosts.length === 0 && <p className="rounded-lg border border-dashed border-stone-300 p-5 text-center text-sm text-steel">Brak innych wydatków.</p>}
             </div>
           </section>
         </div>

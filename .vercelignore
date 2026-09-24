@@ -14,6 +14,7 @@ supabase/
 # Notatki wewnętrzne: ustalenia, wyceny, korespondencja z klientem.
 NOTATKI_DO_ZMIANY_PO_OPLACENIU_I_SPOTKANIU.md
 ODPOWIEDZ_DO_KLIENTA.md
+ZROBIONE_DLA_KLIENTA.md
 STAN_APLIKACJI_DLA_CURSOR.md
 KONTEKST_APLIKACJI.md
 docs/

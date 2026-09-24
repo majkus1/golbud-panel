@@ -73,7 +73,7 @@ export function PaymentsSection({
         <h2 className="min-w-0 text-base font-bold text-ink sm:text-lg">Płatności klienta</h2>
         <button type="button" onClick={add} className={btnSectionAdd}>
           <span className="sm:hidden">+ Pozycja</span>
-          <span className="hidden sm:inline">Dodaj pozycję</span>
+          <span className="hidden sm:inline">Dodaj planowaną płatność</span>
         </button>
       </div>
 
@@ -98,7 +98,7 @@ export function PaymentsSection({
       <div className="grid gap-3 sm:hidden">
         {items.length === 0 && (
           <p className="rounded-xl2 border border-dashed border-stone-200 p-4 text-center text-sm text-steel">
-            Brak pozycji płatności. Kliknij „Dodaj pozycję” u góry, żeby wpisać zaliczkę, ratę albo rozliczenie końcowe — każdą pozycję uzupełnia się bezpośrednio na liście.
+            Brak pozycji płatności. Kliknij „Dodaj planowaną płatność” u góry, żeby wpisać zaliczkę, ratę albo rozliczenie końcowe — każdą pozycję uzupełnia się bezpośrednio na liście.
           </p>
         )}
         {items.map((p) => {
