@@ -461,24 +461,17 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
                 {t.label}
               </button>
             ))}
-            {/* Na dużym ekranie zakładki z „Więcej” są od razu widoczne — jako jedna lżejsza grupa
-                (sam tekst, bez ramek). Gdy nie zmieści się w wierszu, przechodzi w całości do drugiego. */}
-            {visibleSecondaryTabs.length > 0 && (
-              <div className="hidden items-center gap-0.5 xl:ml-1 xl:flex">
-                {visibleSecondaryTabs.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => selectTab(t.id)}
-                    className={`whitespace-nowrap rounded-lg px-2 py-1.5 text-[13px] font-semibold transition ${
-                      tab === t.id ? "bg-ink text-white" : "text-steel hover:bg-white hover:text-ink"
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            )}
+            {/* Na dużym ekranie zakładki z „Więcej” są od razu widoczne — w tym samym wyglądzie i ciągu. */}
+            {visibleSecondaryTabs.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => selectTab(t.id)}
+                className={`hidden xl:block ${tabBtnClass(tab === t.id)}`}
+              >
+                {t.label}
+              </button>
+            ))}
           </ScrollRow>
           {visibleSecondaryTabs.length > 0 && (
           <div ref={moreRef} className="relative shrink-0 xl:hidden">
