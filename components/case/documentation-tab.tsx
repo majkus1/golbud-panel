@@ -5,6 +5,7 @@ import { AttachmentList } from "@/components/case/attachment-list";
 import { AsBuiltEstimatesSection } from "@/components/case/as-built-estimates-section";
 import { DocumentsSection } from "@/components/case/documents-section";
 import { ProtocolsSection } from "@/components/case/protocols-section";
+import { ScrollRow } from "@/components/ui/scroll-row";
 import { DOC_SECTIONS, attachmentSection, sectionCategories, visibleDocSections, type DocSection } from "@/lib/case-tabs";
 import type { Attachment, CaseAsBuiltEstimate, CaseProtocol, CaseRow, ExtraWork, OfferLine, OfferVariant, Payment } from "@/lib/types";
 
@@ -85,19 +86,21 @@ export function DocumentationTab({
   const listProps = { caseId, organizationId, userId, onChange };
 
   return (
-    <div className="grid min-w-0 gap-5">
-      <nav aria-label="Sekcje dokumentacji" className="flex flex-wrap gap-1.5">
-        {DOC_SECTIONS.filter((s) => sections.includes(s.id)).map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => jumpTo(s.id)}
-            className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-steel ring-1 ring-stone-200 hover:bg-stone-50 hover:text-ink"
-          >
-            {s.label}
-            <span className="ml-1.5 rounded-full bg-stone-100 px-1.5 py-0.5 text-[0.65rem] text-steel">{counts[s.id] ?? 0}</span>
-          </button>
-        ))}
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-5">
+      <nav aria-label="Sekcje dokumentacji" className="min-w-0">
+        <ScrollRow className="sm:flex-wrap sm:overflow-visible">
+          {DOC_SECTIONS.filter((s) => sections.includes(s.id)).map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => jumpTo(s.id)}
+              className="shrink-0 whitespace-nowrap rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-steel ring-1 ring-stone-200 hover:bg-stone-50 hover:text-ink"
+            >
+              {s.label}
+              <span className="ml-1.5 rounded-full bg-stone-100 px-1.5 py-0.5 text-[0.65rem] text-steel">{counts[s.id] ?? 0}</span>
+            </button>
+          ))}
+        </ScrollRow>
       </nav>
 
       {sections.includes("umowy") && (

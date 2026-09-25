@@ -328,8 +328,9 @@ export function CasesListClient() {
           </label>
         </div>
 
-        {/* Mobile: karty zamiast szerokiej tabeli */}
-        <div className="mt-5 grid gap-3 sm:hidden">
+        {/* Telefon, tablet i wąski laptop: karty (dwie kolumny od md). Tabela ma za dużo
+            kolumn, żeby zmieścić się bez przewijania w bok przy węższym ekranie. */}
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:hidden">
           {filtered.length === 0 && (
             <p className="py-8 text-center text-sm text-steel">Brak spraw pasujących do filtrów.</p>
           )}
@@ -387,29 +388,34 @@ export function CasesListClient() {
           })}
         </div>
 
-        {/* Desktop / tablet: tabela */}
-        <div className="mt-5 hidden max-w-full overflow-x-auto sm:block">
-          <table className="w-full min-w-[980px] text-left text-sm">
+        {/* Szeroki ekran: tabela o stałych proporcjach kolumn — mieści się w oknie bez przewijania
+            w bok; długie teksty zawijają się albo skracają w swojej kolumnie. */}
+        <div className="mt-5 hidden xl:block">
+          <table className="w-full table-fixed text-left text-sm">
+            <colgroup>
+              <col className="w-[21%]" />
+              <col className="w-[13%]" />
+              <col className="w-[20%]" />
+              <col className="w-[12%]" />
+              <col className="w-[9%]" />
+              <col className="w-[10%]" />
+              <col className="w-[15%]" />
+            </colgroup>
             <thead className="text-xs uppercase text-steel">
               <tr>
                 <th className="py-3 pr-4">Klient</th>
-                <th className="py-3 pr-4">Kontakt</th>
                 <th className="py-3 pr-4">Lokalizacja</th>
                 <th className="py-3 pr-4">Opis</th>
                 <th className="py-3 pr-4">Status</th>
                 <th className="py-3 pr-4">Nast. kontakt</th>
-                <th className="py-3 pr-4">Kwota</th>
-                <th className="sticky right-0 bg-white py-3 pl-3 pr-4 shadow-[-10px_0_10px_-10px_rgba(23,32,27,0.25)]">Prowadzi</th>
+                <th className="py-3 pr-4 text-right">Kwota</th>
+                <th className="py-3 pl-2">Prowadzi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
               {filtered.map((c) => {
                 const leadIds = leadsMap[c.id] || [];
                 const overdue = isDue(c.next_contact_date) && !TERMINAL.has(c.status);
-                // Kolumna „Prowadzi” jest przyklejona do prawej krawędzi, więc musi mieć własne,
-                // nieprzezroczyste tło w kolorze wiersza — inaczej przy przewijaniu prześwitywałyby
-                // przez nią kolumny sunące pod spodem.
-                const leadCellTone = overdue ? "bg-amber-50 group-hover:bg-amber-50" : "bg-white group-hover:bg-stone-50";
                 return (
                   <tr
                     key={c.id}
@@ -417,40 +423,34 @@ export function CasesListClient() {
                     onClick={(event) => {
                       if (isPlainClick(event)) router.push(`/cases/${c.id}`);
                     }}
-                    className={`group cursor-pointer transition hover:bg-stone-50 ${
-                      overdue ? "bg-amber-50/45 hover:bg-amber-50" : ""
-                    }`}
+                    className={`cursor-pointer align-top transition hover:bg-stone-50 ${overdue ? "bg-amber-50/45 hover:bg-amber-50" : ""}`}
                   >
                     <td className="py-4 pr-4">
-                      <span className="font-semibold text-ink">{c.client_name}</span>
-                    </td>
-                    <td className="py-4 pr-4 text-steel">
+                      <span className="block break-words font-semibold text-ink">{c.client_name}</span>
                       {c.phone ? (
-                        <a href={`tel:${c.phone.replace(/\s/g, "")}`} onClick={(e) => e.stopPropagation()} className="font-medium text-ink hover:text-moss">
+                        <a href={`tel:${c.phone.replace(/\s/g, "")}`} onClick={(e) => e.stopPropagation()} className="mt-1 block text-sm font-medium text-ink hover:text-moss">
                           {c.phone}
                         </a>
-                      ) : (
-                        <p>—</p>
-                      )}
+                      ) : null}
                       {c.email ? (
-                        <a href={`mailto:${c.email}`} onClick={(e) => e.stopPropagation()} className="mt-1 block text-xs hover:text-moss">
+                        <a href={`mailto:${c.email}`} onClick={(e) => e.stopPropagation()} title={c.email} className="block truncate text-xs text-steel hover:text-moss">
                           {c.email}
                         </a>
                       ) : null}
                     </td>
-                    <td className="py-4 pr-4 text-steel">{c.location || "—"}</td>
-                    <td className="max-w-xs py-4 pr-4 align-top text-steel">
+                    <td className="break-words py-4 pr-4 text-steel">{c.location || "—"}</td>
+                    <td className="py-4 pr-4 text-steel">
                       <ExpandableText text={c.work_description} lines={2} className="text-steel" />
                     </td>
                     <td className="py-4 pr-4">
-                      <StatusBadge status={c.status} />
+                      <StatusBadge status={c.status} wrap />
                     </td>
-                    <td className="py-4 pr-4 text-steel">{formatDate(c.next_contact_date)}</td>
-                    <td className="py-4 pr-4 text-steel">{formatMoney(c.estimated_value)}</td>
-                    <td
-                      className={`sticky right-0 py-4 pl-3 pr-4 shadow-[-10px_0_10px_-10px_rgba(23,32,27,0.25)] ${leadCellTone}`}
-                    >
-                      <CaseLeadBadge userIds={leadIds} members={members} />
+                    <td className={`whitespace-nowrap py-4 pr-4 ${overdue ? "font-semibold text-amber-800" : "text-steel"}`}>
+                      {c.next_contact_date ? formatDate(c.next_contact_date) : "—"}
+                    </td>
+                    <td className="whitespace-nowrap py-4 pr-4 text-right text-steel">{c.estimated_value ? formatMoney(c.estimated_value) : "—"}</td>
+                    <td className="py-4 pl-2">
+                      <CaseLeadBadge userIds={leadIds} members={members} plain />
                     </td>
                   </tr>
                 );

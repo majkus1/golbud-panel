@@ -30,11 +30,14 @@ export function CaseLeadBadge({
   userIds,
   members,
   showEmpty = true,
+  plain = false,
   className = ""
 }: {
   userIds: string[];
   members: OrgMemberProfile[];
   showEmpty?: boolean;
+  /** Bez ramki i cienia — do tabel, gdzie plakietka ma wyglądać jak zwykła treść komórki. */
+  plain?: boolean;
   className?: string;
 }) {
   if (userIds.length === 0) {
@@ -57,7 +60,7 @@ export function CaseLeadBadge({
   return (
     <span
       title={title}
-      className={`inline-flex min-w-0 max-w-full items-center gap-2 rounded-md border border-stone-200 bg-white px-2 py-1.5 shadow-sm ${className}`}
+      className={`inline-flex min-w-0 max-w-full items-center gap-2 ${plain ? "" : "rounded-md border border-stone-200 bg-white px-2 py-1.5 shadow-sm"} ${className}`}
     >
       <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-black ${avatarTone(firstId)}`}>
         {initials(name)}

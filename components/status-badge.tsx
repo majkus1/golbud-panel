@@ -17,11 +17,12 @@ const styles: Record<CaseStatus, string> = {
   utracone: "bg-rose-50 text-rose-800 ring-rose-200"
 };
 
-export function StatusBadge({ status }: { status: CaseStatus }) {
+/** `wrap` — w wąskiej kolumnie tabeli dłuższy status („termin zarezerwowany”) łamie się na dwie linie zamiast urywać. */
+export function StatusBadge({ status, wrap = false }: { status: CaseStatus; wrap?: boolean }) {
   const cls = styles[status] || "bg-stone-50 text-stone-700 ring-stone-200";
   return (
-    <span className={`inline-flex max-w-full items-center rounded-full px-3 py-1 text-xs font-semibold ring-1 ${cls}`}>
-      <span className="truncate">{status}</span>
+    <span className={`inline-flex max-w-full items-center px-3 py-1 text-xs font-semibold ring-1 ${wrap ? "rounded-2xl leading-tight" : "rounded-full"} ${cls}`}>
+      <span className={wrap ? "break-words" : "truncate"}>{status}</span>
     </span>
   );
 }

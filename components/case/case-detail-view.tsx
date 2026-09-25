@@ -1,6 +1,8 @@
 "use client";
 
 import { BackLink } from "@/components/ui";
+import { IconPencil, IconTrash } from "@/components/ui/action-icons";
+import { ScrollRow } from "@/components/ui/scroll-row";
 import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -45,17 +47,19 @@ type Tab = CaseTab;
 /** Kompaktowe przyciski akcji — mobile first. */
 // „Edytuj dane" to zwykła akcja pomocnicza, nie główne działanie na karcie — stąd wariant
 // obrysowany zamiast wypełnionego. Ciemne tło zostawiamy aktywnej zakładce.
+// Na telefonie same ikony (kwadrat 36 px, podpis w `aria-label` i dymku), od sm ikona z tekstem.
 const btnCaseSecondary =
-  "inline-flex shrink-0 items-center justify-center rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-ink transition hover:border-moss/40 hover:bg-stone-50 sm:px-4 sm:py-2 sm:text-sm";
+  "inline-flex size-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-stone-300 bg-white text-sm font-semibold text-ink transition hover:border-moss/40 hover:bg-stone-50 sm:size-auto sm:px-4 sm:py-2";
 const btnCaseDanger =
-  "inline-flex shrink-0 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 sm:px-4 sm:py-2 sm:text-sm";
-const tabScrollClass =
-  "flex min-w-0 flex-1 gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:flex-initial sm:flex-wrap sm:overflow-visible";
+  "inline-flex size-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-rose-200 bg-rose-50 text-sm font-semibold text-rose-700 hover:bg-rose-100 sm:size-auto sm:px-4 sm:py-2";
 function tabBtnClass(active: boolean): string {
   return `shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition sm:rounded-lg sm:px-3 sm:py-2 sm:text-sm ${
     active ? "bg-ink text-white" : "bg-white text-steel ring-1 ring-stone-200 hover:bg-stone-50"
   }`;
 }
+
+/** Szerokość menu „Więcej” (min-w-44) — do wyboru strony, w którą się otwiera. */
+const MORE_MENU_WIDTH = 176;
 
 export function CaseDetailView({ organizationId, userId }: { organizationId: string; userId: string }) {
   const params = useParams<{ id: string }>();
@@ -82,6 +86,9 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
   const [tab, setTab] = useState<Tab>(() => resolveTabParam(searchParams.get("tab")).tab);
   const [docSection, setDocSection] = useState<DocSection | undefined>(() => resolveTabParam(searchParams.get("tab")).section);
   const [showMore, setShowMore] = useState(false);
+  // Menu „Więcej” otwiera się w stronę, gdzie jest miejsce — przy lewej krawędzi ekranu
+  // (tak bywa na telefonie i w wąskim oknie) wyjeżdżało poza widok i było ucinane.
+  const [moreAlignLeft, setMoreAlignLeft] = useState(false);
 
   // Synchronizacja aktywnej zakładki z adresem URL (?tab=...) — odświeżenie/udostępnienie linku zachowuje widok.
   const selectTab = useCallback(
@@ -406,7 +413,7 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
 
   return (
     <div className="grid min-w-0 max-w-full gap-4 sm:gap-6">
-      <div className="flex min-w-0 flex-col gap-3 sm:gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="relative flex min-w-0 flex-col gap-3 sm:gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0 flex-1">
           <BackLink href="/cases" className="mb-1.5 sm:mb-2">Zapytania i oferty</BackLink>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-steel sm:text-sm">Karta sprawy</p>
@@ -414,22 +421,22 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
           <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
             <StatusBadge status={caseRow.status} />
             <span className="text-xs font-semibold text-steel">Prowadzi:</span>
-            <CaseLeadBadge userIds={responsibleUserIds} members={members} />
+            <CaseLeadBadge userIds={responsibleUserIds} members={members} plain />
           </div>
           {/* „Kto założył sprawę” dało się dotąd odczytać wyłącznie z dziennika zmian.
               Autor jest zapisany przy samej sprawie, więc pokazujemy go wprost. */}
           <CaseAuthorLine createdBy={caseRow.created_by} createdAt={caseRow.created_at} members={members} />
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <div className="absolute right-0 top-0 flex shrink-0 items-center gap-2 sm:static sm:flex-wrap">
           {!fieldView && (
-            <Link href={`/cases/${caseId}/edit`} className={btnCaseSecondary}>
-              <span className="sm:hidden">Edytuj</span>
+            <Link href={`/cases/${caseId}/edit`} className={btnCaseSecondary} aria-label="Edytuj dane sprawy" title="Edytuj dane sprawy">
+              <IconPencil />
               <span className="hidden sm:inline">Edytuj dane</span>
             </Link>
           )}
           {canManage && (
-            <button type="button" onClick={() => setShowDelete(true)} className={btnCaseDanger}>
-              <span className="sm:hidden">Usuń</span>
+            <button type="button" onClick={() => setShowDelete(true)} className={btnCaseDanger} aria-label="Przenieś sprawę do kosza" title="Przenieś sprawę do kosza">
+              <IconTrash />
               <span className="hidden sm:inline">Usuń sprawę</span>
             </button>
           )}
@@ -437,19 +444,20 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
       </div>
 
       <nav className="relative z-20 min-w-0 max-w-full border-b border-stone-200" aria-label="Sekcje sprawy">
-        <div className="flex min-w-0 max-w-full items-center gap-1.5 pb-1 sm:flex-wrap sm:pb-2">
-          <div className={tabScrollClass}>
+        <div className="flex min-w-0 max-w-full items-start gap-1.5 pb-2 sm:flex-wrap sm:items-center">
+          <ScrollRow activeKey={tab} label="Zakładki sprawy" outerClassName="flex-1 sm:flex-initial" className="sm:flex-wrap sm:overflow-visible">
             {visiblePrimaryTabs.map((t) => (
               <button
                 key={t.id}
                 type="button"
+                data-active={tab === t.id}
                 onClick={() => selectTab(t.id)}
                 className={tabBtnClass(tab === t.id)}
               >
                 {t.label}
               </button>
             ))}
-          </div>
+          </ScrollRow>
           {visibleSecondaryTabs.length > 0 && (
           <div ref={moreRef} className="relative shrink-0">
             {(() => {
@@ -457,7 +465,14 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
               return (
                 <button
                   type="button"
-                  onClick={() => setShowMore((v) => !v)}
+                  onClick={() => {
+                    // Lewa granica widocznej treści: krawędź <main> plus miejsce na boczne menu (lg:pl-64).
+                    const box = moreRef.current?.getBoundingClientRect();
+                    const main = moreRef.current?.closest("main");
+                    const bound = main ? main.getBoundingClientRect().left + parseFloat(getComputedStyle(main).paddingLeft || "0") : 0;
+                    setMoreAlignLeft(!!box && box.right - MORE_MENU_WIDTH < bound + 8);
+                    setShowMore((v) => !v);
+                  }}
                   aria-haspopup="menu"
                   aria-expanded={showMore}
                   className={tabBtnClass(!!activeSecondary)}
@@ -472,7 +487,9 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
               );
             })()}
             {showMore && (
-              <div className="absolute right-0 top-full z-50 mt-1 min-w-44 rounded-lg border border-stone-200 bg-white shadow-lg sm:rounded-md">
+              <div
+                className={`absolute top-full z-50 mt-1 min-w-44 rounded-lg border border-stone-200 bg-white shadow-lg sm:rounded-md ${moreAlignLeft ? "left-0" : "right-0"}`}
+              >
                 {visibleSecondaryTabs.map((t) => (
                   <button
                     key={t.id}

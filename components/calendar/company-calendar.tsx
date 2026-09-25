@@ -90,26 +90,32 @@ export function CompanyCalendar({ variant = "page" }: { variant?: "page" | "dash
 
   if (!organizationId) return null;
 
+  const navBtn = "rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-stone-50";
   const monthNav = (
-    <div className="flex items-center gap-1.5 sm:gap-2">
-      <button type="button" onClick={() => setCursor((c) => shiftMonth(c, -1))} aria-label="Poprzedni miesiąc" className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-stone-50">
+    <div className="grid w-full grid-cols-[auto_1fr_auto_auto] items-center gap-1.5 sm:flex sm:w-auto sm:gap-2">
+      <button type="button" onClick={() => setCursor((c) => shiftMonth(c, -1))} aria-label="Poprzedni miesiąc" className={navBtn}>
         ←
       </button>
-      <span className="min-w-[130px] text-center text-sm font-bold text-ink sm:min-w-[150px]">
+      <span className="text-center text-sm font-bold text-ink sm:min-w-[150px]">
         {MONTHS[cursor.month]} {cursor.year}
       </span>
-      <button type="button" onClick={() => setCursor((c) => shiftMonth(c, 1))} aria-label="Następny miesiąc" className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-stone-50">
+      <button type="button" onClick={() => setCursor((c) => shiftMonth(c, 1))} aria-label="Następny miesiąc" className={navBtn}>
         →
       </button>
-      <button type="button" onClick={goToday} className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm font-semibold text-ink hover:bg-stone-50">
+      <button type="button" onClick={goToday} className={navBtn}>
         Dziś
       </button>
     </div>
   );
 
   const addButton = canAddEntries ? (
-    <button type="button" onClick={() => setDialog({ mode: "new", date: selected })} className="rounded-lg bg-ink px-3 py-2 text-sm font-semibold text-white hover:bg-moss">
-      + Dodaj wpis
+    <button
+      type="button"
+      onClick={() => setDialog({ mode: "new", date: selected })}
+      className="shrink-0 whitespace-nowrap rounded-lg bg-ink px-3 py-2 text-sm font-semibold text-white hover:bg-moss"
+    >
+      <span className="sm:hidden">+ Wpis</span>
+      <span className="hidden sm:inline">+ Dodaj wpis</span>
     </button>
   ) : null;
 
@@ -134,7 +140,7 @@ export function CompanyCalendar({ variant = "page" }: { variant?: "page" | "dash
       <span className="flex items-center gap-1.5"><span className={`size-2 rounded-full ${PRIORITY_TONE_CLASSES.red.dot}`} />pilne</span>
       <span className="flex items-center gap-1.5"><span className={`size-2 rounded-full ${PRIORITY_TONE_CLASSES.yellow.dot}`} />ważne</span>
       <span className="flex items-center gap-1.5"><span className={`size-2 rounded-full ${PRIORITY_TONE_CLASSES.green.dot}`} />zwykłe</span>
-      <span className="flex items-center gap-1.5"><span className={`size-2 rounded-full ${BUSINESS_DOT}`} />terminy ze spraw i firmy</span>
+      <span className="flex items-center gap-1.5"><span className={`size-2 rounded-full ${BUSINESS_DOT}`} />terminy</span>
       {canSeeHr && <span className="flex items-center gap-1.5"><span className={`size-2 rounded-full ${HR_DOT}`} />kadry</span>}
     </p>
   );
@@ -347,19 +353,19 @@ export function CompanyCalendar({ variant = "page" }: { variant?: "page" | "dash
   if (compact) {
     return (
       <section className="min-w-0 rounded-xl2 border border-stone-200/80 bg-white p-4 shadow-card sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <h2 className="text-base font-bold text-ink sm:text-lg">Kalendarz</h2>
-            <Link href="/calendar" className="rounded-lg px-2 py-1 text-sm font-semibold text-moss hover:bg-moss/10">
+            <Link href="/calendar" className="whitespace-nowrap rounded-lg px-2 py-1 text-sm font-semibold text-moss hover:bg-moss/10">
               Pełny widok →
             </Link>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {monthNav}
-            {addButton}
-          </div>
+          {addButton}
         </div>
-        <div className="mt-3">{legend}</div>
+        <div className="mt-3 grid gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
+          {monthNav}
+          {legend}
+        </div>
         <div className="mt-3 grid min-w-0 gap-5 xl:grid-cols-[1.45fr_1fr]">
           {monthGrid}
           {dayList}
@@ -377,7 +383,7 @@ export function CompanyCalendar({ variant = "page" }: { variant?: "page" | "dash
           <h1 className="mt-2 text-2xl font-bold text-ink sm:text-3xl">Kalendarz firmy</h1>
           <p className="mt-1 text-sm text-steel">Wpisy, zadania i terminy firmy. Kliknij dzień, aby zobaczyć szczegóły; dwuklik dodaje wpis na ten dzień.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid w-full grid-cols-[1fr_auto] items-center gap-2 sm:flex sm:w-auto">
           {monthNav}
           {addButton}
         </div>
