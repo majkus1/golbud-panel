@@ -420,8 +420,11 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
           <h1 className="mt-1.5 truncate text-xl font-bold text-ink sm:mt-2 sm:text-3xl">{caseRow.client_name}</h1>
           <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
             <StatusBadge status={caseRow.status} />
-            <span className="text-xs font-semibold text-steel">Prowadzi:</span>
-            <CaseLeadBadge userIds={responsibleUserIds} members={members} plain />
+            {/* Na telefonie „Prowadzi” w osobnej linii pod etapem, razem z osobą — od sm obok etapu. */}
+            <span className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
+              <span className="shrink-0 text-xs font-semibold text-steel">Prowadzi:</span>
+              <CaseLeadBadge userIds={responsibleUserIds} members={members} plain />
+            </span>
           </div>
           {/* „Kto założył sprawę” dało się dotąd odczytać wyłącznie z dziennika zmian.
               Autor jest zapisany przy samej sprawie, więc pokazujemy go wprost. */}
