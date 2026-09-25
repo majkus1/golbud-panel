@@ -52,8 +52,9 @@ const btnCaseSecondary =
   "inline-flex size-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-stone-300 bg-white text-sm font-semibold text-ink transition hover:border-moss/40 hover:bg-stone-50 sm:size-auto sm:px-4 sm:py-2";
 const btnCaseDanger =
   "inline-flex size-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-rose-200 bg-rose-50 text-sm font-semibold text-rose-700 hover:bg-rose-100 sm:size-auto sm:px-4 sm:py-2";
+// Od xl wszystkie zakładki mieszczą się w jednym pasku (bez „Więcej”), więc są nieco mniejsze.
 function tabBtnClass(active: boolean): string {
-  return `shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition sm:rounded-lg sm:px-3 sm:py-2 sm:text-sm ${
+  return `shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition sm:rounded-lg sm:px-3 sm:py-2 sm:text-sm xl:px-2.5 xl:py-1.5 xl:text-[13px] ${
     active ? "bg-ink text-white" : "bg-white text-steel ring-1 ring-stone-200 hover:bg-stone-50"
   }`;
 }
@@ -460,9 +461,27 @@ export function CaseDetailView({ organizationId, userId }: { organizationId: str
                 {t.label}
               </button>
             ))}
+            {/* Na dużym ekranie zakładki z „Więcej” są od razu widoczne — jako jedna lżejsza grupa
+                (sam tekst, bez ramek). Gdy nie zmieści się w wierszu, przechodzi w całości do drugiego. */}
+            {visibleSecondaryTabs.length > 0 && (
+              <div className="hidden items-center gap-0.5 xl:ml-1 xl:flex">
+                {visibleSecondaryTabs.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => selectTab(t.id)}
+                    className={`whitespace-nowrap rounded-lg px-2 py-1.5 text-[13px] font-semibold transition ${
+                      tab === t.id ? "bg-ink text-white" : "text-steel hover:bg-white hover:text-ink"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </ScrollRow>
           {visibleSecondaryTabs.length > 0 && (
-          <div ref={moreRef} className="relative shrink-0">
+          <div ref={moreRef} className="relative shrink-0 xl:hidden">
             {(() => {
               const activeSecondary = visibleSecondaryTabs.find((t) => t.id === tab);
               return (
