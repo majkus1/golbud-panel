@@ -12,6 +12,9 @@ import { pdfText } from "@/lib/pdf-text";
 
 const C = { ink: "#17201b", muted: "#5d6b66", brand: "#8a7a4a", line: "#d6d3d1" };
 
+/** A4 ma 841,89 pt wysokości; tekst stopki zaczyna się 34 pt nad dołem strony. */
+const FOOTER_TEXT_TOP = 841.89 - 34;
+
 const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
@@ -27,11 +30,13 @@ const styles = StyleSheet.create({
   company: { alignItems: "flex-end" },
   companyName: { fontSize: 8.5, fontWeight: "bold", color: C.ink, textAlign: "right" },
   companyLine: { fontSize: 7.5, color: C.muted, textAlign: "right", lineHeight: 1.35 },
-  footerRule: { position: "absolute", bottom: 34, left: 40, right: 40, borderTopWidth: 0.5, borderTopColor: C.line },
-  footerLeft: { position: "absolute", bottom: 22, left: 40, right: 140, fontSize: 7, color: C.muted },
-  // Od góry, nie od dołu: dla tekstu z `render` react-pdf liczy `bottom` od wysokości całej
-  // treści i numer lądował kilka tysięcy punktów pod stroną. A4 ma 841,89 pt wysokości.
-  footerRight: { position: "absolute", top: 841.89 - 22 - 12, left: 40, right: 40, fontSize: 7, color: C.muted, textAlign: "right" },
+  // Linia stopki 42 pt nad dołem strony (treść kończy się 50 pt nad dołem), tekst i numer strony
+  // 8 pt pod linią — wcześniej numer strony dotykał linii i stopka wyglądała na sklejoną.
+  footerRule: { position: "absolute", bottom: 42, left: 40, right: 40, borderTopWidth: 0.5, borderTopColor: C.line },
+  // Oba teksty od góry, żeby stały równo w jednej linii. Dla tekstu z `render` react-pdf liczy
+  // `bottom` od wysokości całej treści i numer lądował kilka tysięcy punktów pod stroną.
+  footerLeft: { position: "absolute", top: FOOTER_TEXT_TOP, left: 40, right: 140, fontSize: 7, color: C.muted },
+  footerRight: { position: "absolute", top: FOOTER_TEXT_TOP, left: 40, right: 40, fontSize: 7, color: C.muted, textAlign: "right" },
 });
 
 export function Letterhead({ seller, logoPath }: { seller: OfferSellerProfile; logoPath: string | null }) {
