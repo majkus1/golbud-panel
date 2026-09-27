@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { BackLink } from "@/components/ui";
 import { AuthGate } from "@/components/auth-gate";
 import { showToast } from "@/components/toast";
@@ -44,6 +45,7 @@ function PieceworkActivitiesInner() {
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
   const [saving, setSaving] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<PieceworkActivity | null>(null);
 
   const load = async () => {
     if (!organizationId || !canUse) return;
@@ -255,7 +257,7 @@ function PieceworkActivitiesInner() {
                       <button type="button" className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs font-semibold text-ink hover:bg-stone-50" onClick={() => startEdit(i)}>
                         Edytuj
                       </button>
-                      <button type="button" className="rounded-lg px-3 py-1.5 text-xs font-medium text-rose-500 hover:bg-rose-50" onClick={() => void remove(i.id)}>
+                      <button type="button" className="rounded-lg px-3 py-1.5 text-xs font-medium text-rose-500 hover:bg-rose-50" onClick={() => setItemToDelete(i)}>
                         Usuń
                       </button>
                     </div>
@@ -267,6 +269,20 @@ function PieceworkActivitiesInner() {
           {items.length === 0 && <p className="rounded-xl2 border border-dashed border-stone-300 p-6 text-center text-sm text-steel">Brak czynności akordowych. Dodaj pierwszą powyżej.</p>}
         </ul>
       </section>
+
+      <ConfirmDialog
+        open={itemToDelete !== null}
+        title="Usunąć czynność akordową?"
+        message={`Czynność „${itemToDelete?.name ?? ""}” zniknie ze słownika. Jeśli ma już wpisy w dziennikach akordu, program jej nie usunie.`}
+        confirmLabel="Usuń"
+        variant="danger"
+        onCancel={() => setItemToDelete(null)}
+        onConfirm={() => {
+          const id = itemToDelete?.id;
+          setItemToDelete(null);
+          if (id) void remove(id);
+        }}
+      />
     </div>
   );
 }

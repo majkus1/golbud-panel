@@ -184,7 +184,7 @@ export function InvoicesSection({ caseId, organizationId, userId, caseRow, varia
         <div>
           <h2 className="text-lg font-bold text-ink">Faktury</h2>
           <p className="text-xs text-steel">
-            Proforma, zaliczkowa, końcowa i VAT — spięte z wyceną i płatnościami. Eksport PDF oraz XML (KSeF FA(2)).
+            Proforma, zaliczkowa, końcowa i VAT — spięte z wyceną i płatnościami. Eksport PDF oraz roboczy plik XML (dane pod przyszłą integrację z KSeF).
           </p>
         </div>
       </div>
@@ -503,7 +503,7 @@ function InvoiceEditor({
             Pobierz PDF
           </Button>
           <Button type="button" variant="secondary" size="sm" onClick={downloadKsef}>
-            Eksport KSeF (XML)
+            Eksport XML (roboczy)
           </Button>
           <Button type="button" variant="primary" size="sm" onClick={openSend}>
             Wyślij mailem
@@ -519,13 +519,13 @@ function InvoiceEditor({
 
       <details className="rounded-lg border border-stone-200 bg-white/70 p-3 text-sm text-steel">
         <summary className="cursor-pointer list-none font-semibold text-ink">
-          <span className="mr-1 text-moss">ℹ</span> Co to jest „Eksport KSeF (XML)”?
+          <span className="mr-1 text-moss">ℹ</span> Co to jest „Eksport XML (roboczy)”?
         </summary>
         <p className="mt-2 leading-relaxed">
-          KSeF (Krajowy System e-Faktur) to rządowa platforma Ministerstwa Finansów, przez którą firmy wystawiają i odbierają
-          faktury w jednolitym formacie XML — schemie <strong>FA(2)</strong>. Przycisk „Eksport KSeF (XML)” pobiera fakturę
-          właśnie w tym formacie. Taki plik można zaimportować do programu księgowego lub przekazać księgowej, a docelowo
-          wysłać bezpośrednio do KSeF. Dla zwykłej wysyłki do klienta wystarczy „Pobierz PDF”.
+          To plik roboczy z danymi faktury w strukturze zbliżonej do KSeF (Krajowy System e-Faktur). Przygotowuje dane pod
+          przyszłą integrację z KSeF, ale <strong>nie jest plikiem gotowym do wysłania do KSeF</strong> ani do importu w
+          programie księgowym. Program nie wysyła dziś faktur do KSeF. Dla zwykłej wysyłki do klienta i księgowej wystarczy
+          „Pobierz PDF”.
         </p>
       </details>
 

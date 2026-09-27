@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
+import { DateInput } from "@/components/date-input";
 import { AuthGate } from "@/components/auth-gate";
 import { showToast } from "@/components/toast";
 import { canEditWorkHours, canViewPayroll, useOrg } from "@/components/org-context";
@@ -722,7 +723,7 @@ function PieceworkTab({
           </label>
           <label className="grid gap-1 text-xs font-semibold text-ink">
             Data wykonania
-            <input type="date" className="input font-normal" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} />
+            <DateInput className="font-normal" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} />
           </label>
 
           {mode === "single" ? (

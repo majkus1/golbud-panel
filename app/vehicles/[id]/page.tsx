@@ -4,6 +4,7 @@ import { DateInput } from "@/components/date-input";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { BackLink } from "@/components/ui";
 import { AuthGate } from "@/components/auth-gate";
 import { showToast } from "@/components/toast";
@@ -37,6 +38,7 @@ function VehicleDetail() {
   const [svcCost, setSvcCost] = useState("");
   const [svcVendor, setSvcVendor] = useState("");
   const [svcNote, setSvcNote] = useState("");
+  const [serviceToDelete, setServiceToDelete] = useState<VehicleServiceEntry | null>(null);
 
   const load = useCallback(async () => {
     if (!organizationId || !id) return;
@@ -223,7 +225,7 @@ function VehicleDetail() {
                 {s.description ? <p className="mt-1 text-xs">{s.description}</p> : null}
                 {s.cost != null && Number(s.cost) > 0 ? <p className="mt-1 text-xs font-medium">{formatMoney(Number(s.cost))}</p> : null}
               </div>
-              <button type="button" className="text-xs text-rose-600 hover:underline" onClick={() => void removeService(s.id)}>
+              <button type="button" className="text-xs text-rose-600 hover:underline" onClick={() => setServiceToDelete(s)}>
                 Usuń
               </button>
             </li>
@@ -231,6 +233,20 @@ function VehicleDetail() {
           {services.length === 0 ? <li className="py-4 text-steel">Brak wpisów serwisu.</li> : null}
         </ul>
       </section>
+
+      <ConfirmDialog
+        open={serviceToDelete !== null}
+        title="Usunąć wpis serwisu?"
+        message={`Wpis „${serviceToDelete?.title ?? ""}” zniknie z historii serwisu tego samochodu.`}
+        confirmLabel="Usuń"
+        variant="danger"
+        onCancel={() => setServiceToDelete(null)}
+        onConfirm={() => {
+          const id = serviceToDelete?.id;
+          setServiceToDelete(null);
+          if (id) void removeService(id);
+        }}
+      />
     </div>
   );
 }
