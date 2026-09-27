@@ -25,3 +25,6 @@ STAN_APLIKACJI_DLA_CURSOR.md
 
 # Wzory dokumentów przesłane przez klienta 7.08 — materiał roboczy, nie część kodu.
 DOKUMENTY 7 SIERPNIA/
+
+# Lokalne ustawienia Claude Code.
+.claude/settings.local.json

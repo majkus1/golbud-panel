@@ -28,3 +28,8 @@ node_modules/
 
 # Wzory dokumentów od klienta (7.08).
 DOKUMENTY 7 SIERPNIA/
+
+# Ustawienia narzędzi (Claude Code, Cursor) — lokalne, nie dla serwera.
+.claude/
+.cursor/
+tsconfig.tsbuildinfo
