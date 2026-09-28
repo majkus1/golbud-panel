@@ -975,7 +975,7 @@ function ProfitabilityInner({ userId }: { userId: string }) {
 
 function Panel({ title, hint, children }: { title: string; hint: string; children: React.ReactNode }) {
   return (
-    <section className="grid min-w-0 gap-3 rounded-lg bg-white p-4 shadow-panel sm:p-5">
+    <section className="grid min-w-0 content-start gap-3 rounded-lg bg-white p-4 shadow-panel sm:p-5">
       <div className="min-w-0">
         <h2 className="break-words text-base font-bold text-ink">{title}</h2>
         <p className="mt-1 break-words text-xs leading-5 text-steel">{hint}</p>
